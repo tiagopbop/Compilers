@@ -36,59 +36,68 @@ ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 WS : [ \t\n\r\f]+ -> skip ;
 
 program
-    : (importDecl)* classDecl EOF
+    : (importDecl)* classDecl EOF                                                            #ProgramBeggining
     ;
 
 importDecl
-    : IMPORT ID ('.' ID)* ';'
+    : IMPORT name=ID ('.' name=ID)* ';'                                                      #ImportDeclaration
     ;
 
 classDecl
-    : CLASS name=ID ('extends' ID)? '{' methodDecl* '}'
+    : CLASS name=ID ('extends' superclass=ID)? '{' varDecl* methodDecl* '}'                  #ClassDeclaration
     ;
 
 varDecl
-    : type name=ID ';'
+    : type name=ID ';'                                                                       #VarDeclaration
     ;
 
 type
-    : INT
-    | BOOLEAN
+    : INT ('[' ']')?                                                                         #IntType
+    | BOOLEAN ('[' ']')?                                                                     #BooleanType
+    | 'String' ('[' ']')?                                                                    #StringType
+    | ID                                                                                     #ClassType
     ;
 
 methodDecl
-    : (PUBLIC)? type name=ID '(' (paramList)? ')' '{' varDecl* stmt* 'return' expr ';' '}'
-    | (PUBLIC)? STATIC VOID MAIN '(' 'String' '[' ']' ID ')' '{' varDecl* stmt* '}'
+    : (PUBLIC)? type name=ID '(' (paramList)? ')' '{' varDecl* stmt* 'return' expr ';' '}'   #MethodDeclaration
+    | (PUBLIC)? STATIC VOID MAIN '(' 'String' '[' ']' ID ')' '{' varDecl* stmt* '}'          #MainMethodDeclaration
     ;
 
 paramList
-    : param (',' param)*
+    : param (',' param)*                                                                     #ParameterList
     ;
 
 param
-    : type name=ID
+    : type name=ID                                                                           #Parameter
+    | type '...' name=ID                                                                     #VarArgParameter
     ;
 
 stmt
-    : expr '=' expr ';'  #AssignStmt
-    | RETURN expr ';'  #ReturnStmt
-    | IF '(' expr ')' stmt (ELSE stmt)? #IfStmt
-    | WHILE '(' expr ')' stmt #WhileStmt
-    | '{' stmt* '}' #BlockStmt
-    | expr ';' #ExprStmt
+    : expr '[' expr ']' '=' expr ';'                                                         #ArrayAssignStatement
+    | expr '=' expr ';'                                                                      #AssignStatement
+    | RETURN expr ';'                                                                        #ReturnStatement
+    | IF '(' expr ')' stmt (ELSE stmt)?                                                      #IfStatement
+    | WHILE '(' expr ')' stmt                                                                #WhileStatement
+    | '{' stmt* '}'                                                                          #BlockStatement
+    | expr ';'                                                                               #ExprStatement
     ;
 
 expr
-    : '!' expr #NotExpr
-    | expr (MULT | DIV) expr  #BinaryOp
-    | expr (PLUS | MINUS) expr #BinaryOp
-    | expr (AND | LESS) expr  #BooleanOp
-    | value=INTEGER #IntegerLiteral
-    | value=TRUE #BooleanLiteral
-    | value=FALSE #BooleanLiteral
-    | THIS #ThisExpr
-    | '(' expr ')' #ParenExpr
-    | name=ID #VarRefExpr
-    | expr '.' ID '(' (expr (',' expr)*)? ')' #MethodCall
-    | name=ID '(' (expr (',' expr)*)? ')' #MethodCall
+    : '[' expr (',' expr)* ']'                                                               #ArrayInitializationExpr
+    | 'new' type '[' expr ']'                                                                #NewArrayExpr
+    | expr '[' expr ']'                                                                      #ArrayAccess
+    | 'new' name=ID '(' ')'                                                                  #NewClassExpr
+    | expr '.' 'length'                                                                      #LengthExpr
+    | '!' expr                                                                               #NotExpr
+    | expr operation=(MULT | DIV) expr                                                       #BinaryOp
+    | expr operation=(PLUS | MINUS) expr                                                     #BinaryOp
+    | expr operation=(AND | LESS) expr                                                       #BooleanOp
+    | value=INTEGER                                                                          #IntegerLiteral
+    | value=TRUE                                                                             #BooleanLiteral
+    | value=FALSE                                                                            #BooleanLiteral
+    | THIS                                                                                   #ThisExpr
+    | '(' expr ')'                                                                           #ParenthesisExpr
+    | name=ID                                                                                #VarRefExpr
+    | expr '.' name=ID '(' (expr (',' expr)*)? ')'                                           #MethodCall
+    | name=ID '(' (expr (',' expr)*)? ')'                                                    #MethodCall
     ;

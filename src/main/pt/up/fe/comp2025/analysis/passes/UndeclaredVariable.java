@@ -24,7 +24,7 @@ public class UndeclaredVariable extends AnalysisVisitor {
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
-        currentMethod = method.get("name");
+        currentMethod = method.get("method");
         return null;
     }
 
@@ -47,6 +47,7 @@ public class UndeclaredVariable extends AnalysisVisitor {
             return null;
         }
 
+        // Var is a declared field, return
         if(table.getFields().stream()
                 .anyMatch(field -> field.getName().equals(varRefName)))    {
             return null;

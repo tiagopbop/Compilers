@@ -33,14 +33,16 @@ NOT: '!';
 INTEGER : [0-9]+ ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-WS : [ \t\n\r\f]+ -> skip ;
+WS : [ \t\n\r\f]+ -> skip;
+COMMENT : '//' ~[\r\n]* -> skip;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip;
 
 program
     : (importDecl)* classDecl EOF                                                            #ProgramBeggining
     ;
 
 importDecl
-    : IMPORT name=ID ('.' name=ID)* ';'                                                      #ImportDeclaration
+    : IMPORT name+=ID ('.' name+=ID)* ';'                                                    #ImportDeclaration
     ;
 
 classDecl
@@ -59,9 +61,10 @@ type
     ;
 
 methodDecl locals[boolean isMain=false]
-    : (PUBLIC)? type method=ID '(' (param (',' param)*)? ')' '{' varDecl* stmt* '}'              #MethodDeclaration
-    | (PUBLIC)? STATIC VOID {$isMain=true;} method=MAIN '(' name=ID '[' ']' name=ID ')' '{' varDecl * stmt* '}' #MainMethodDeclaration
+    : (PUBLIC)? type method=ID '(' (param (',' param)*)? ')' '{' varDecl* stmt* '}'                                 #MethodDeclaration
+    | (PUBLIC)? STATIC VOID {$isMain=true;} method=MAIN '(' name=ID '[' ']' name=ID ')' '{' varDecl * stmt* '}'   #MainMethodDeclaration
     ;
+
 param
     : type name=ID                                                                           #Parameter
     | type '...' name=ID                                                                     #VarArgParameter
@@ -84,8 +87,8 @@ expr
     | 'new' name=ID '(' ')'                                                                  #NewClassExpr
     | expr '.' 'length'                                                                      #LengthExpr
     | '!' expr                                                                               #NotExpr
-    | expr operation=(MULT | DIV) expr                                                       #BinaryOp
-    | expr operation=(PLUS | MINUS) expr                                                     #BinaryOp
+    | expr operation=(MULT | DIV) expr                                                       #BinaryExpr
+    | expr operation=(PLUS | MINUS) expr                                                     #BinaryExpr
     | expr operation=(AND | LESS) expr                                                       #BooleanOp
     | value=INTEGER                                                                          #IntegerLiteral
     | value=TRUE                                                                             #BooleanLiteral

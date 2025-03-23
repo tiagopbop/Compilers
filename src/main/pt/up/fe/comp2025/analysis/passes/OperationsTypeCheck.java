@@ -1,5 +1,6 @@
 package pt.up.fe.comp2025.analysis.passes;
 
+import pt.up.fe.comp.jmm.analysis.table.Symbol;
 import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2025.analysis.AnalysisVisitor;
@@ -8,6 +9,8 @@ import pt.up.fe.comp2025.ast.TypeUtils;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 
+import java.util.List;
+
 
 public class OperationsTypeCheck extends AnalysisVisitor {
 
@@ -15,8 +18,10 @@ public class OperationsTypeCheck extends AnalysisVisitor {
     public void buildVisitor() {
         System.out.println("Registering visitor for: " + Kind.BINARY_EXPR);
         addVisit(Kind.BINARY_EXPR, this::visitBinExpr);
-    }
 
+        System.out.println("Registering visitor for: " + Kind.ARRAY_ACCESS);
+        addVisit(Kind.ARRAY_ACCESS, this::visitArrayAccess);
+    }
     private Void visitBinExpr(JmmNode node, SymbolTable table) {
         String op = node.get("operation");
 
@@ -27,13 +32,12 @@ public class OperationsTypeCheck extends AnalysisVisitor {
         System.out.println("Left Operand: " + leftOperand);
         System.out.println("Right Operand: " + rightOperand);
 
-        String leftType = leftOperand.isInstance(Kind.VAR_REF_EXPR) ? leftOperand.get("name") : leftOperand.get("value");
-        String rightType = rightOperand.isInstance(Kind.VAR_REF_EXPR) ? rightOperand.get("name") : rightOperand.get("value");
+        String leftType = getOperandType(leftOperand, table);
+        String rightType = getOperandType(rightOperand, table);
 
         System.out.println("Left Type: " + leftType);
         System.out.println("Right Type: " + rightType);
 
-        // Check if operation is multiplication (*)
         if (op.equals("*") || op.equals("/") || op.equals("-") || op.equals("+")) {
             if (leftType == null || rightType == null) {
                 System.out.println("ERROR: One or both operand types are null!");
@@ -51,4 +55,61 @@ public class OperationsTypeCheck extends AnalysisVisitor {
 
         return null;
     }
+
+    private String getOperandType(JmmNode operand, SymbolTable table) {
+        if (operand.isInstance(Kind.VAR_REF_EXPR)) {
+            String varName = operand.get("name");
+
+
+            for (String method : table.getMethods()) {
+                List<Symbol> localSymbols = table.getLocalVariables(method);
+                for (Symbol symbol : localSymbols) {
+                    if (symbol.getName().equals(varName)) {
+                        return symbol.getType().toString();
+                    }
+                }
+            }
+
+            for (Symbol field : table.getFields()) {
+                if (field.getName().equals(varName)) {
+                    return field.getType().toString();
+                }
+            }
+        } else if (operand.isInstance(Kind.INTEGER_LITERAL)) {
+            String value = operand.get("value");
+            if (value.equals("true") || value.equals("false")) {
+                return "bool";
+            } else {
+                try {
+                    Integer.parseInt(value);
+                    return "int";
+                } catch (NumberFormatException e) {
+                }
+            }
+        }
+        return null;
+
+    }
+
+    private Void visitArrayAccess(JmmNode node, SymbolTable table) {
+
+        JmmNode arrayExpr = node.getChild(0);
+        JmmNode indexExpr = node.getChild(1);
+
+        String arrayType = getOperandType(arrayExpr, table);
+        if (!arrayType.endsWith("[]")) {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    node.getLine(),
+                    node.getColumn(),
+                    "Invalid array access: Expected an array but found: " + arrayType,
+                    null
+            ));
+        }
+
+        return null;
+    }
+
+
+
 }

@@ -65,8 +65,11 @@ public class JmmSymbolTable extends AJmmSymbolTable {
 
     @Override
     public Type getReturnType(String methodSignature) {
-        // TODO: Simple implementation that needs to be expanded
-        return returnTypes.get(methodSignature);
+        if (returnTypes.containsKey(methodSignature)) {
+            return returnTypes.get(methodSignature);
+        } else {
+            throw new IllegalArgumentException("Method signature not found: " + methodSignature);
+        }
     }
 
     @Override

@@ -27,6 +27,7 @@ public enum Kind {
     BINARY_EXPR,
     INTEGER_LITERAL,
     VAR_REF_EXPR,
+    ARRAY_ACCESS,
     IMPORT_DECL;
 
 

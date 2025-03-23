@@ -38,10 +38,27 @@ public class TypeUtils {
      * @return
      */
     public Type getExprType(JmmNode expr) {
+        if (expr.getKind().equals(Kind.ARRAY_ACCESS)) {
+            JmmNode arrayExpr = expr.getChild(0);
+            Type arrayType = getExprType(arrayExpr);
 
-        // TODO: Update when there are new types
+            if (!arrayType.isArray()) {
+                throw new SemanticException("Cannot access element of non-array type: " + arrayType.getName());
+            }
+            return arrayType;
+        }
         return new Type("int", false);
+
     }
+
+
+    public class SemanticException extends RuntimeException {
+        public SemanticException(String message) {
+            super(message);
+        }
+    }
+
+
 
 
 }

@@ -36,6 +36,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(BINARY_EXPR, this::visitBinExpr);
         addVisit(ARRAY_ACCESS, this::visitArrayAccess);
         addVisit(INTEGER_LITERAL, this::visitInteger);
+        addVisit(ARRAY_INITIALIZATION_EXPR, this::visitArrayInit);
 
 //        setDefaultVisit(this::defaultVisit);
     }
@@ -97,6 +98,36 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
         return new OllirExprResult(tempVar, computation);
     }
+    private OllirExprResult visitArrayInit(JmmNode node, Void unused) {
+
+        System.out.println("Visiting array initialization");
+        StringBuilder computation = new StringBuilder();
+
+        String arrayType = ollirTypes.toOllirType(types.getExprType(node)); // Array type
+        String arrayVar = ollirTypes.nextTemp() + arrayType;
+
+        computation.append(arrayVar).append(SPACE)
+                .append(ASSIGN).append(arrayType).append(SPACE)
+                .append("new ").append(arrayType).append(SPACE);
+
+        int size = node.getChildren().size();
+        computation.append(size).append(END_STMT);
+
+        StringBuilder initComputation = new StringBuilder();
+        for (int i = 0; i < size; i++) {
+            JmmNode element = node.getChild(i);
+            String elementCode = visit(element).getCode();
+
+            initComputation.append("store ").append(elementCode)
+                    .append(" to ").append(arrayVar).append("[").append(i).append("]").append(END_STMT);
+        }
+
+        computation.append(initComputation);
+
+        return new OllirExprResult(arrayVar, computation);
+    }
+
+
 
     private OllirExprResult visitVarRef(JmmNode node, Void unused) {
 

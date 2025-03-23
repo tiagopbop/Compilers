@@ -6,7 +6,6 @@ import pt.up.fe.specs.util.SpecsStrings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Enum that mirrors the nodes that are supported by the AST.
@@ -28,6 +27,7 @@ public enum Kind {
     INTEGER_LITERAL,
     VAR_REF_EXPR,
     ARRAY_ACCESS,
+    ARRAY_INITIALIZATION_EXPR,
     IMPORT_DECL;
 
 

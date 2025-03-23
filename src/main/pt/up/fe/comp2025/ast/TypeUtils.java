@@ -38,6 +38,7 @@ public class TypeUtils {
      * @return
      */
     public Type getExprType(JmmNode expr) {
+
         if (expr.getKind().equals(Kind.ARRAY_ACCESS)) {
             JmmNode arrayExpr = expr.getChild(0);
             Type arrayType = getExprType(arrayExpr);
@@ -45,10 +46,20 @@ public class TypeUtils {
             if (!arrayType.isArray()) {
                 throw new SemanticException("Cannot access element of non-array type: " + arrayType.getName());
             }
-            return arrayType;
+            return new Type(arrayType.getName(), false);
         }
-        return new Type("int", false);
+        if (expr.getKind().equals(Kind.ARRAY_INITIALIZATION_EXPR)) {
+            if (expr.getNumChildren() == 0) {
+                throw new SemanticException("Array initialization cannot be empty.");
+            }
 
+            JmmNode firstElement = expr.getChild(0);
+            Type elementType = getExprType(firstElement);
+
+            return new Type(elementType.getName() + "[]", true);
+        }
+
+        return new Type("int", false);
     }
 
 

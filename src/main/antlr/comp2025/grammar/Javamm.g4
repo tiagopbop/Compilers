@@ -62,7 +62,7 @@ type
 
 methodDecl locals[boolean isMain=false]
     : (PUBLIC)? type method=ID '(' (param (',' param)*)? ')' '{' varDecl* stmt* '}'                                 #MethodDeclaration
-    | (PUBLIC)? STATIC VOID {$isMain=true;} method=MAIN '(' name=ID '[' ']' name=ID ')' '{' varDecl * stmt* '}'   #MainMethodDeclaration
+    | (PUBLIC)? STATIC VOID {$isMain=true;} method=MAIN '(' name=ID '[' ']' name=ID ')' '{' varDecl * stmt* '}'     #MainMethodDeclaration
     ;
 
 param
@@ -72,10 +72,10 @@ param
 
 stmt
     : expr '[' expr ']' '=' expr ';'                                                         #ArrayAssignStatement
-    | expr '=' expr ';'                                                                      #AssignStatement
-    | RETURN expr ';'                                                                        #ReturnStatement
-    | IF '(' expr ')' stmt (ELSE stmt)?                                                      #IfStatement
-    | WHILE '(' expr ')' stmt                                                                #WhileStatement
+    | expr '=' expr ';'                                                                      #AssignStmt
+    | RETURN expr ';'                                                                        #ReturnStmt
+    | IF '(' expr ')' stmt (ELSE stmt)?                                                      #IfStmt
+    | WHILE '(' expr ')' stmt                                                                #WhileStmt
     | '{' stmt* '}'                                                                          #BlockStatement
     | expr ';'                                                                               #ExprStatement
     ;

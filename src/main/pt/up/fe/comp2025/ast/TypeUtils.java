@@ -23,7 +23,6 @@ public class TypeUtils {
 
     public static Type convertType(JmmNode typeNode) {
 
-        // TODO: When you support new types, this must be updated
         var name = typeNode.get("name");
         var isArray = typeNode.getKind().equals("ArrayType");
 
@@ -39,26 +38,70 @@ public class TypeUtils {
      */
     public Type getExprType(JmmNode expr) {
 
-        if (expr.getKind().equals(Kind.ARRAY_ACCESS)) {
-            JmmNode arrayExpr = expr.getChild(0);
-            Type arrayType = getExprType(arrayExpr);
-
-            if (!arrayType.isArray()) {
-                throw new SemanticException("Cannot access element of non-array type: " + arrayType.getName());
+        if (Kind.ARRAY_ACCESS.check(expr)) {
+            if (!getExprType(expr.getChild(0)).isArray()) {
+                throw new SemanticException("Cannot access element of non-array type: " + getExprType(expr.getChild(0)).getName());
             }
-            return new Type(arrayType.getName(), false);
-        }
-        if (expr.getKind().equals(Kind.ARRAY_INITIALIZATION_EXPR)) {
+            return new Type(getExprType(expr.getChild(0)).getName(), false);
+
+        } else if (Kind.ARRAY_INITIALIZATION_EXPR.check(expr)) {
             if (expr.getNumChildren() == 0) {
                 throw new SemanticException("Array initialization cannot be empty.");
             }
 
-            JmmNode firstElement = expr.getChild(0);
-            Type elementType = getExprType(firstElement);
+            return new Type(getExprType(expr.getChild(0)).getName(), true);
 
-            return new Type(elementType.getName() + "[]", true);
+        } else if (Kind.VAR_REF_EXPR.check(expr)) {
+            String varName = expr.get("name");
+
+            for (String method : table.getMethods()) {
+                for (var param : table.getParameters(method)) {
+                    if (param.getName().equals(varName)) {
+                        return param.getType();
+                    }
+                }
+                for (var local : table.getLocalVariables(method)) {
+                    if (local.getName().equals(varName)) {
+                        return local.getType();
+                    }
+                }
+            }
+
+            for (var field : table.getFields()) {
+                if (field.getName().equals(varName)) {
+                    return field.getType();
+                }
+            }
+
+        } else if (Kind.METHOD_CALL.check(expr)) {
+            String methodName = expr.get("method");
+            if (!table.getMethods().contains(methodName)) {
+                throw new SemanticException("Method '" + methodName + "' not declared.");
+            }
+
+            return table.getReturnType(methodName);
+
+        } else if (Kind.NEW_CLASS_EXPR.check(expr)) {
+            return new Type(expr.get("name"), false);
+
+        } else if (Kind.NEW_ARRAY_EXPR.check(expr)) {
+            return new Type("int", true);
+
+        } else if (Kind.BOOLEAN_LITERAL.check(expr)) {
+            return new Type("boolean", false);
+
+        } else if (Kind.INTEGER_LITERAL.check(expr)) {
+            return new Type("int", false);
+
+        } else if (Kind.THIS_EXPR.check(expr)) {
+            return new Type(table.getClassName(), false);
+
+        } else if (Kind.PARENTHESIS_EXPR.check(expr)) {
+            return getExprType(expr.getChild(0));
+
         }
 
+        System.out.println("Unknown expression kind in getExprType: " + expr.getKind());
         return new Type("int", false);
     }
 

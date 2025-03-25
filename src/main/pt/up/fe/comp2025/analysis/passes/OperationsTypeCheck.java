@@ -10,27 +10,18 @@ import pt.up.fe.comp.jmm.report.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 
 public class OperationsTypeCheck extends AnalysisVisitor {
 
-
-
     @Override
     public void buildVisitor() {
 
-        System.out.println("Registering visitor for: " + Kind.BINARY_EXPR);
         addVisit(Kind.BINARY_EXPR, this::visitBinExpr);
 
-        System.out.println("Registering visitor for: " + Kind.ARRAY_ACCESS);
-        addVisit(Kind.ARRAY_ACCESS, this::visitArrayAccess);
+        addVisit(Kind.WHILE_STMT, this::visitWhileStmt);
 
-        System.out.println("Initializing array for : " + Kind.ARRAY_INITIALIZATION_EXPR);
-        addVisit(Kind.ARRAY_INITIALIZATION_EXPR, this::visitArrayInit);
-
-
-
+        addVisit(Kind.IF_STMT, this::visitIfStmt);
 
     }
     private Void visitBinExpr(JmmNode node, SymbolTable table) {
@@ -39,33 +30,78 @@ public class OperationsTypeCheck extends AnalysisVisitor {
         JmmNode leftOperand = node.getChild(0);
         JmmNode rightOperand = node.getChild(1);
 
-        System.out.println("Checking Binary Operation: " + op);
-        System.out.println("Left Operand: " + leftOperand);
-        System.out.println("Right Operand: " + rightOperand);
-
         List<Object> leftType = getOperandType(leftOperand, table);
-        String ltype = leftType.get(0).toString();
-        String isLarray = leftType.get(1).toString();
-        List<Object> rightType = getOperandType(rightOperand, table);
-        String rtype = rightType.getFirst().toString();
-        String isRarray = rightType.get(1).toString();
+        String leftTypeName = leftType.get(0).toString();
+        String isLeftArray = leftType.get(1).toString();
 
-        System.out.println("Left Type: " + leftType);
-        System.out.println("Right Type: " + rightType);
+        List<Object> rightType = getOperandType(rightOperand, table);
+        String rightTypeName = rightType.getFirst().toString();
+        String isRightArray = rightType.get(1).toString();
 
         if (op.equals("*") || op.equals("/") || op.equals("-") || op.equals("+")) {
-            if (leftType == null || rightType == null) {
-                System.out.println("ERROR: One or both operand types are null!");
-            }
-            if (!leftType.equals("int") || !rightType.equals("int")) {
+            if (!leftTypeName.equals("int") || !rightTypeName.equals("int")) {
                 addReport(Report.newError(
                         Stage.SEMANTIC,
                         node.getLine(),
                         node.getColumn(),
-                        "Operations require both operands to be of type int, but found: " + ltype + ',' + isLarray + " and " + rtype + ',' + isRarray,
+                        "Operations require both operands to be of type int, but found: " + leftTypeName + " and " + rightTypeName,
+                        null
+                ));
+            } else if (!isLeftArray.equals("false") || !isLeftArray.equals("false")) {
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        node.getLine(),
+                        node.getColumn(),
+                        "Operations require both operands to not be an array, but found at least one",
                         null
                 ));
             }
+        }
+
+        return null;
+    }
+
+    private Void visitWhileStmt(JmmNode node, SymbolTable table) {
+        JmmNode condition = node.getChild(0);
+
+        List<Object> conditionType = getOperandType(condition, table);
+        String type = conditionType.get(0).toString();
+
+        if (!type.equals("boolean") || conditionType.get(1).toString() == "true") {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    condition.getLine(),
+                    condition.getColumn(),
+                    "Condition in 'while' must be a boolean, but found: " + type,
+                    null
+            ));
+        }
+
+        return null;
+    }
+
+    private Void visitIfStmt(JmmNode node, SymbolTable table) {
+        JmmNode condition = node.getChild(0);
+
+        List<Object> conditionType = getOperandType(condition, table);
+
+        System.out.println("Condition Node Kind: " + condition.getKind());
+        System.out.println("Condition Node: " + condition);
+        System.out.println("Condition Type List: " + conditionType);
+
+        String type = conditionType.get(0).toString();
+
+        System.out.println("Resolved Type: " + type);
+        System.out.println("Is Array: " + conditionType.get(1).toString());
+
+        if (!type.equals("boolean") || conditionType.get(1).toString() == "true") {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    condition.getLine(),
+                    condition.getColumn(),
+                    "Condition in 'If' must be a boolean, but found: " + type,
+                    null
+            ));
         }
 
         return null;
@@ -78,10 +114,9 @@ public class OperationsTypeCheck extends AnalysisVisitor {
             String varName = operand.get("name");
 
             for (String method : table.getMethods()) {
-                List<Symbol> localSymbols = table.getLocalVariables(method);
-                for (Symbol symbol : localSymbols) {
+                for (Symbol symbol : table.getLocalVariables(method)) {
                     if (symbol.getName().equals(varName)) {
-                        result.add(symbol.getType().toString());
+                        result.add(symbol.getType().getName());
                         result.add(symbol.getType().isArray()); //  array flag
                         return result;
                     }
@@ -90,78 +125,30 @@ public class OperationsTypeCheck extends AnalysisVisitor {
 
             for (Symbol field : table.getFields()) {
                 if (field.getName().equals(varName)) {
-                    result.add(field.getType().toString());
+                    result.add(field.getType().getName());
                     result.add(field.getType().isArray()); // array flag
                     return result;
                 }
             }
-        } else if (operand.isInstance(Kind.INTEGER_LITERAL)) {
-            String value = operand.get("value");
-            if (value.equals("true") || value.equals("false")) {
-                result.add("bool");
-                result.add(false); // not an array
+        } else if (operand.isInstance(Kind.BINARY_EXPR)) {
+            String op = operand.get("operation");
+            if (op.equals("+") ||  op.equals("-") ||  op.equals("*") ||  op.equals("/")) {
+                result.add("int");
+                result.add(false);
             } else {
-                try {
-                    Integer.parseInt(value);
-                    result.add("int");
-                    result.add(false); // not an array
-                } catch (NumberFormatException e) {
-                    result.add(null); // undefined or invalid type
-                    result.add(false);
-                }
+                result.add("boolean");
+                result.add(false);
             }
+
+        } else if (operand.isInstance(Kind.INTEGER_LITERAL)) {
+            result.add("int");
+            result.add(false);
+        } else if (operand.isInstance(Kind.BOOLEAN_LITERAL)) {
+            result.add("boolean");
+            result.add(false);
         }
 
         return result;
     }
-
-    private Void visitArrayAccess(JmmNode node, SymbolTable table) {
-
-        JmmNode arrayExpr = node.getChild(0);
-        JmmNode indexExpr = node.getChild(1);
-
-        List<Object> arrayType = getOperandType(arrayExpr, table);
-        String actualType = arrayType.getFirst().toString();
-        String isArray = arrayType.get(1).toString();
-        assert arrayType != null;
-        if (isArray.equals("false")) {
-            addReport(Report.newError(
-                    Stage.SEMANTIC,
-                    node.getLine(),
-                    node.getColumn(),
-                    "Invalid array access: Expected an array but found: " + actualType,
-                    null
-            ));
-        }
-
-        return null;
-    }
-    private Void visitArrayInit(JmmNode node, SymbolTable table) {
-
-        System.out.println("hahahahhahahahahahahhahahahahhahahahahahhaha!");
-
-        var elements = node.getChildren();
-
-        for (JmmNode element : elements) {
-            List<Object> arrayType = getOperandType(element, table);
-            String actualType = arrayType.getFirst().toString();
-            String isArray = arrayType.get(1).toString();
-
-            if (!Objects.equals(actualType, "int")) {
-                addReport(Report.newError(
-                        Stage.SEMANTIC,
-                        element.getLine(),
-                        element.getColumn(),
-                        "Invalid array initialization: all elements must be of type int, but found: " + actualType,
-                        null
-                ));
-            }
-        }
-
-        return null;
-    }
-
-
-
 
 }

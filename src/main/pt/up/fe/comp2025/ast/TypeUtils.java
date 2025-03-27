@@ -74,7 +74,7 @@ public class TypeUtils {
             }
 
         } else if (Kind.METHOD_CALL.check(expr)) {
-            String methodName = expr.get("method");
+            String methodName = expr.get("name");
             if (!table.getMethods().contains(methodName)) {
                 throw new SemanticException("Method '" + methodName + "' not declared.");
             }

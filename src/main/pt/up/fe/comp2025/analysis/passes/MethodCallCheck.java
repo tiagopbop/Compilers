@@ -27,6 +27,27 @@ public class MethodCallCheck extends AnalysisVisitor {
                     "Call to undeclared method: '" + methodName + "'",
                     null
             ));
+            return null;
+        }
+
+        if (!declared) return null;
+
+        var args = node.getChildren();
+        var expected = table.getParameters(methodName);
+
+        if (expected == null) return null;
+
+        boolean hasVararg = !expected.isEmpty() && expected.getLast().getType().isArray();
+        int fixedCount = hasVararg ? expected.size() - 1 : expected.size();
+
+        if ((!hasVararg && args.size() != expected.size()) || (hasVararg && args.size() < fixedCount)) {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    node.getLine(),
+                    node.getColumn(),
+                    "Incorrect number of arguments for method '" + methodName + "'",
+                    null
+            ));
         }
 
         return null;

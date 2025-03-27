@@ -100,6 +100,16 @@ public class ArraysCheck extends AnalysisVisitor {
             String varName = operand.get("name");
 
             for (String method : table.getMethods()) {
+                for (Symbol param : table.getParameters(method)) {
+                    if (param.getName().equals(varName)) {
+                        result.add(param.getType().getName());
+                        result.add(param.getType().isArray());
+                        return result;
+                    }
+                }
+            }
+
+            for (String method : table.getMethods()) {
                 for (Symbol symbol : table.getLocalVariables(method)) {
                     if (symbol.getName().equals(varName)) {
                         result.add(symbol.getType().getName());

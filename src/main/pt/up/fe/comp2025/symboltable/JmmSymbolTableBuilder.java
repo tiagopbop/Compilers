@@ -80,7 +80,11 @@ public class JmmSymbolTableBuilder {
         for (var method : classDecl.getChildren(Kind.METHOD_DECL)) {
 
             var params = method.getChildren(Kind.PARAM).stream()
-                    .map(param -> new Symbol(TypeUtils.convertType(param.getChildren().get(0)), param.get("name")))
+                    .map(param -> {
+                        var type = TypeUtils.convertType(param.getChild(0));
+                        if (param.getKind().equals("VarArgParameter")) { type = new Type(type.getName(), true); }
+                        return new Symbol(type, param.get("name"));
+                    })
                     .toList();
 
             map.put(method.get("method"), params);

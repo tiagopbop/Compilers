@@ -23,7 +23,7 @@ public class SemanticAnalysisTest {
     public void classNotImported() {
         var result = TestUtils.analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ClassNotImported.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -118,7 +118,7 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/IncompatibleArguments.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -126,7 +126,7 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/IncompatibleReturn.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -134,6 +134,51 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/AssumeArguments.jmm"));
         TestUtils.noErrors(result);
+    }
+
+    @Test
+    public void thisAsObject() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ThisAsObject.jmm"));
+        TestUtils.noErrors(result);
+    }
+
+    @Test
+    public void thisInStaticMethod() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ThisInStaticMethod.jmm"));
+        TestUtils.mustFail(result);
+        //System.out.println(result.getReports());
+    }
+
+    @Test
+    public void nestedBinaryExpr() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/NestedBinaryExpr.jmm"));
+        TestUtils.noErrors(result);
+    }
+
+    @Test
+    public void nestedBinaryExprWrong() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/NestedBinaryExprWrong.jmm"));
+        TestUtils.mustFail(result);
+        //System.out.println(result.getReports());
+    }
+
+    @Test
+    public void parenthesis() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/Parenthesis.jmm"));
+        TestUtils.noErrors(result);
+    }
+
+    @Test
+    public void parenthesisWrong() {
+        var result = TestUtils
+                .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ParenthesisWrong.jmm"));
+        TestUtils.mustFail(result);
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -148,7 +193,7 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/VarargsWrong.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -163,7 +208,7 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ArrayInitWrong1.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
     @Test
@@ -171,7 +216,7 @@ public class SemanticAnalysisTest {
         var result = TestUtils
                 .analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis/ArrayInitWrong2.jmm"));
         TestUtils.mustFail(result);
-        System.out.println(result.getReports());
+        //System.out.println(result.getReports());
     }
 
 

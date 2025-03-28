@@ -33,7 +33,8 @@ public class JmmAnalysisImpl implements JmmAnalysis {
                 new OperationsTypeCheck(),
                 new ArraysCheck(),
                 new MethodCallCheck(),
-                new AssignmentTypeCheck());
+                new AssignmentTypeCheck(),
+                new ThisCheck());
     }
 
     @Override

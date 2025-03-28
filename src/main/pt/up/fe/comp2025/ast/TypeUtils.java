@@ -73,6 +73,14 @@ public class TypeUtils {
                 }
             }
 
+        } else if (Kind.BINARY_EXPR.check(expr)) {
+            String op = expr.get("operation");
+
+            if (op.equals("+") || op.equals("-") || op.equals("*") || op.equals("/")) {
+                return new Type("int", false);
+            } else {
+                return new Type("boolean", false);
+            }
         } else if (Kind.METHOD_CALL.check(expr)) {
             String methodName = expr.get("name");
             if (!table.getMethods().contains(methodName)) {

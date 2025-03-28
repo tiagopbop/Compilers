@@ -1,0 +1,7 @@
+class ThisInStaticMethod {
+
+    public static void main(String[] args) {
+        ThisInStaticMethod obj;
+        obj = this;
+    }
+}

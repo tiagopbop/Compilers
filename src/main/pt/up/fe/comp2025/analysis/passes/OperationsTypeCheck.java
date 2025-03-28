@@ -8,8 +8,10 @@ import pt.up.fe.comp2025.ast.Kind;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 
+import java.awt.desktop.SystemSleepEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 public class OperationsTypeCheck extends AnalysisVisitor {
@@ -26,6 +28,8 @@ public class OperationsTypeCheck extends AnalysisVisitor {
     }
     private Void visitBinExpr(JmmNode node, SymbolTable table) {
         String op = node.get("operation");
+
+        if (node.getNumChildren() < 2) return null;
 
         JmmNode leftOperand = node.getChild(0);
         JmmNode rightOperand = node.getChild(1);
@@ -47,7 +51,7 @@ public class OperationsTypeCheck extends AnalysisVisitor {
                         "Operations require both operands to be of type int, but found: " + leftTypeName + " and " + rightTypeName,
                         null
                 ));
-            } else if (!isLeftArray.equals("false") || !isLeftArray.equals("false")) {
+            } else if (!isLeftArray.equals("false") || !isRightArray.equals("false")) {
                 addReport(Report.newError(
                         Stage.SEMANTIC,
                         node.getLine(),
@@ -85,16 +89,9 @@ public class OperationsTypeCheck extends AnalysisVisitor {
 
         List<Object> conditionType = getOperandType(condition, table);
 
-        System.out.println("Condition Node Kind: " + condition.getKind());
-        System.out.println("Condition Node: " + condition);
-        System.out.println("Condition Type List: " + conditionType);
-
         String type = conditionType.get(0).toString();
 
-        System.out.println("Resolved Type: " + type);
-        System.out.println("Is Array: " + conditionType.get(1).toString());
-
-        if (!type.equals("boolean") || conditionType.get(1).toString() == "true") {
+        if (!type.equals("boolean") || Objects.equals(conditionType.get(1).toString(), "true")) {
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     condition.getLine(),
@@ -110,7 +107,10 @@ public class OperationsTypeCheck extends AnalysisVisitor {
     private List<Object> getOperandType(JmmNode operand, SymbolTable table) {
         List<Object> result = new ArrayList<>();
 
-        if (operand.isInstance(Kind.VAR_REF_EXPR)) {
+        if (operand.isInstance(Kind.PARENTHESIS_EXPR)) {
+            return getOperandType(operand.getChild(0), table);
+
+        } else if (operand.isInstance(Kind.VAR_REF_EXPR)) {
             String varName = operand.get("name");
 
             for (String method : table.getMethods()) {
@@ -130,8 +130,11 @@ public class OperationsTypeCheck extends AnalysisVisitor {
                     return result;
                 }
             }
+
         } else if (operand.isInstance(Kind.BINARY_EXPR)) {
+
             String op = operand.get("operation");
+
             if (op.equals("+") ||  op.equals("-") ||  op.equals("*") ||  op.equals("/")) {
                 result.add("int");
                 result.add(false);
@@ -139,6 +142,16 @@ public class OperationsTypeCheck extends AnalysisVisitor {
                 result.add("boolean");
                 result.add(false);
             }
+
+        } else if (operand.isInstance(Kind.BOOLEAN_EXPR)) {
+
+            List<Object> left = getOperandType(operand.getChild(0), table);
+            List<Object> right = getOperandType(operand.getChild(1), table);
+
+            if (left.isEmpty() || right.isEmpty()) return result;
+
+            result.add("boolean");
+            result.add(false);
 
         } else if (operand.isInstance(Kind.INTEGER_LITERAL)) {
             result.add("int");

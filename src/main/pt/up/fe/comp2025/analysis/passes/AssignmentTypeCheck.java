@@ -41,7 +41,7 @@ public class AssignmentTypeCheck extends AnalysisVisitor {
                     Stage.SEMANTIC,
                     node.getLine(),
                     node.getColumn(),
-                    "Type mismatch in assignment: expected '" + leftType + "' but found '" + rightType + "'",
+                    "Type mismatch in assignment: expected '" + leftType.getName() + (leftType.isArray() ? " array" : " non array") + "' but found '" + rightType.getName() + (rightType.isArray() ? " array" : " non array") + "'",
                     null
             ));
         }

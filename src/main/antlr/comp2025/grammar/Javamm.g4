@@ -89,7 +89,7 @@ expr
     | '!' expr                                                                               #NotExpr
     | expr operation=(MULT | DIV) expr                                                       #BinaryExpr
     | expr operation=(PLUS | MINUS) expr                                                     #BinaryExpr
-    | expr operation=(AND | LESS) expr                                                       #BooleanOp
+    | expr operation=(AND | LESS) expr                                                       #BooleanExpr
     | value=INTEGER                                                                          #IntegerLiteral
     | value=TRUE                                                                             #BooleanLiteral
     | value=FALSE                                                                            #BooleanLiteral

@@ -1,0 +1,9 @@
+class NestedBinaryExprWrong {
+
+    public static void main(String[] args) {
+        int a;
+        boolean b;
+        b = true;
+        a = (1 + 2) * b;
+    }
+}

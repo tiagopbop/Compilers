@@ -37,7 +37,8 @@ public enum Kind {
     NEW_ARRAY_EXPR,
     WHILE_STMT,
     IF_STMT,
-    VAR_ARG_PARAMETERS;
+    VAR_ARG_PARAMETERS,
+    BOOLEAN_EXPR;
 
 
     private final String name;

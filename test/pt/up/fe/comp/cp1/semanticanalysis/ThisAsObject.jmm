@@ -1,0 +1,8 @@
+class ThisAsObject {
+
+    public ThisAsObject get() {
+        ThisAsObject obj;
+        obj = this;
+        return obj;
+    }
+}

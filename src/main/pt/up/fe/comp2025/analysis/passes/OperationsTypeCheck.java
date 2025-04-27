@@ -8,7 +8,6 @@ import pt.up.fe.comp2025.ast.Kind;
 import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 
-import java.awt.desktop.SystemSleepEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -70,13 +69,14 @@ public class OperationsTypeCheck extends AnalysisVisitor {
 
         List<Object> conditionType = getOperandType(condition, table);
         String type = conditionType.get(0).toString();
+        String isArray = conditionType.get(1).toString();
 
-        if (!type.equals("boolean") || conditionType.get(1).toString() == "true") {
+        if (!type.equals("boolean") || Objects.equals(conditionType.get(1).toString(), "true")) {
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     condition.getLine(),
                     condition.getColumn(),
-                    "Condition in 'while' must be a boolean, but found: " + type,
+                    "Condition in 'while' must be a boolean, but found: " + type + (isArray.equals("true") ? " array" : " non array") ,
                     null
             ));
         }
@@ -90,13 +90,14 @@ public class OperationsTypeCheck extends AnalysisVisitor {
         List<Object> conditionType = getOperandType(condition, table);
 
         String type = conditionType.get(0).toString();
+        String isArray = conditionType.get(1).toString();
 
         if (!type.equals("boolean") || Objects.equals(conditionType.get(1).toString(), "true")) {
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     condition.getLine(),
                     condition.getColumn(),
-                    "Condition in 'If' must be a boolean, but found: " + type,
+                    "Condition in 'If' must be a boolean, but found: " + type + (isArray.equals("true") ? " array" : " non array"),
                     null
             ));
         }

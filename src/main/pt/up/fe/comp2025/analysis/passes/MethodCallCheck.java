@@ -32,7 +32,7 @@ public class MethodCallCheck extends AnalysisVisitor {
 
         if (!declared) return null;
 
-        var args = node.getChildren();
+        var args = node.getChildren().subList(1, node.getNumChildren());
         var expected = table.getParameters(methodName);
 
         if (expected == null) return null;

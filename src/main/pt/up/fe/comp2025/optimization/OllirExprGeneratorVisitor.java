@@ -37,8 +37,47 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(ARRAY_ACCESS, this::visitArrayAccess);
         addVisit(INTEGER_LITERAL, this::visitInteger);
         addVisit(ARRAY_INITIALIZATION_EXPR, this::visitArrayInit);
+        addVisit(BOOLEAN_EXPR, this::visitBooleanExpr);
+        addVisit(BOOLEAN_LITERAL, this::visitBooleanLiteral);
 
-//        setDefaultVisit(this::defaultVisit);
+        setDefaultVisit(this::defaultVisit);
+    }
+
+    private OllirExprResult visitBooleanExpr(JmmNode node, Void unused) {
+        var left = visit(node.getChild(0));
+        var right = visit(node.getChild(1));
+
+        StringBuilder computation = new StringBuilder();
+
+        computation.append(left.getComputation());
+        computation.append(right.getComputation());
+
+        String op = node.get("operation");
+
+        String ollirOp = switch(op) {
+            case "&&" -> "&&.bool";
+            case "<" -> "<.i32";
+            default -> throw new RuntimeException("Unsupported boolean operation: " + op);
+        };
+
+        Type resType = types.getExprType(node);
+        String resOllirType = ollirTypes.toOllirType(resType);
+
+        String tempVar = ollirTypes.nextTemp();
+        String code = tempVar + resOllirType;
+
+        computation.append(tempVar).append(resOllirType).append(" :=").append(resOllirType).append(" ");
+        computation.append(left.getCode()).append(" ");
+        computation.append(ollirOp).append(" ");
+        computation.append(right.getCode()).append(";\n");
+
+        return new OllirExprResult(code, computation.toString());
+    }
+
+    private OllirExprResult visitBooleanLiteral(JmmNode node, Void unused) {
+        String value = node.get("value");
+        String ollirValue = value.equals("true") ? "1" : "0";
+        return new OllirExprResult(ollirValue + ".bool");
     }
 
 
@@ -70,15 +109,21 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
                 .append(ASSIGN).append(resOllirType).append(SPACE)
                 .append(lhs.getCode()).append(SPACE);
 
-        Type type = types.getExprType(node);
-        computation.append(node.get("op")).append(ollirTypes.toOllirType(type)).append(SPACE)
+        String op = node.get("operation");
+        String ollirOp = switch(op) {
+            case "+" -> "+.i32";
+            case "-" -> "-.i32";
+            case "*" -> "*.i32";
+            case "/" -> "/.i32";
+            default -> throw new RuntimeException("Unsupported binary operation: " + op);
+        };
+        computation.append(ollirOp).append(SPACE)
                 .append(rhs.getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);
     }
 
     private OllirExprResult visitArrayAccess(JmmNode node, Void unused) {
-        System.out.println("toma laaaaaaaaaaa");
 
         var arrayExpr = visit(node.getChild(0));
         var indexExpr = visit(node.getChild(1));
@@ -130,14 +175,45 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
 
     private OllirExprResult visitVarRef(JmmNode node, Void unused) {
+        String varName = node.get("name");
+        Type varType = types.getExprType(node);
+        String ollirType = ollirTypes.toOllirType(varType);
 
-        var id = node.get("name");
-        Type type = types.getExprType(node);
-        String ollirType = ollirTypes.toOllirType(type);
+        JmmNode current = node;
+        String currentMethod = null;
+        while (current != null && currentMethod == null) {
+            if (current.getKind().equals("MethodDeclaration")) {
+                currentMethod = current.get("method");
+            }
+            current = current.getParent();
+        }
 
-        String code = id + ollirType;
+        boolean isLocal = false;
+        if (currentMethod != null) {
+            isLocal = table.getLocalVariables(currentMethod).stream()
+                    .anyMatch(symbol -> symbol.getName().equals(varName)) ||
+                    table.getParameters(currentMethod).stream()
+                            .anyMatch(symbol -> symbol.getName().equals(varName));
+        }
 
-        return new OllirExprResult(code);
+        boolean isField = !isLocal && table.getFields().stream()
+                .anyMatch(field -> field.getName().equals(varName));
+
+        if (isField) {
+            String tempVar = ollirTypes.nextTemp();
+            StringBuilder computation = new StringBuilder();
+
+            computation.append(tempVar).append(ollirType)
+                    .append(" :=").append(ollirType).append(" ")
+                    .append("getfield(this, ")
+                    .append(varName).append(ollirType)
+                    .append(")").append(ollirType)
+                    .append(";\n");
+
+            return new OllirExprResult(tempVar + ollirType, computation.toString());
+        }
+
+        return new OllirExprResult(varName + ollirType);
     }
 
     /**

@@ -65,34 +65,80 @@ public class OperationsTypeCheck extends AnalysisVisitor {
     }
 
     private Void visitWhileStmt(JmmNode node, SymbolTable table) {
-        JmmNode condition = node.getChild(0);
-
-        List<Object> conditionType = getOperandType(condition, table);
-        String type = conditionType.get(0).toString();
-        String isArray = conditionType.get(1).toString();
-
-        if (!type.equals("boolean") || Objects.equals(conditionType.get(1).toString(), "true")) {
+        if (node.getNumChildren() == 0) {
             addReport(Report.newError(
                     Stage.SEMANTIC,
-                    condition.getLine(),
-                    condition.getColumn(),
-                    "Condition in 'while' must be a boolean, but found: " + type + (isArray.equals("true") ? " array" : " non array") ,
+                    node.getLine(),
+                    node.getColumn(),
+                    "While statement is missing condition or body",
                     null
             ));
+            return null;
+        }
+
+        if (node.getNumChildren() > 0) {
+            JmmNode condition = node.getChild(0);
+
+            List<Object> conditionType = getOperandType(condition, table);
+            if (conditionType.isEmpty()) {
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        condition.getLine(),
+                        condition.getColumn(),
+                        "Could not determine type of while condition",
+                        null
+                ));
+                return null;
+            }
+
+            String type = conditionType.get(0).toString();
+            String isArray = conditionType.size() > 1 ? conditionType.get(1).toString() : "false";
+
+            if (!type.equals("boolean") || isArray.equals("true")) {
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        condition.getLine(),
+                        condition.getColumn(),
+                        "Condition in 'while' must be a boolean, but found: " + type + (isArray.equals("true") ? " array" : " non array"),
+                        null
+                ));
+            }
         }
 
         return null;
     }
 
     private Void visitIfStmt(JmmNode node, SymbolTable table) {
+        if (node.getNumChildren() == 0) {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    node.getLine(),
+                    node.getColumn(),
+                    "If statement is missing condition",
+                    null
+            ));
+            return null;
+        }
+
         JmmNode condition = node.getChild(0);
 
         List<Object> conditionType = getOperandType(condition, table);
 
-        String type = conditionType.get(0).toString();
-        String isArray = conditionType.get(1).toString();
+        if (conditionType.isEmpty()) {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    condition.getLine(),
+                    condition.getColumn(),
+                    "Could not determine type of if condition",
+                    null
+            ));
+            return null;
+        }
 
-        if (!type.equals("boolean") || Objects.equals(conditionType.get(1).toString(), "true")) {
+        String type = conditionType.get(0).toString();
+        String isArray = conditionType.size() > 1 ? conditionType.get(1).toString() : "false";
+
+        if (!type.equals("boolean") || isArray.equals("true")) {
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     condition.getLine(),

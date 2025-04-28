@@ -57,31 +57,56 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(VAR_DECL, this::visitVarDecl);
         addVisit(IF_STMT, this::visitIfStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
+        addVisit(METHOD_CALL, this::visitMethodCallStmt);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private String visitMethodCallStmt(JmmNode node, Void unused) {
+        var result = exprVisitor.visit(node);
+        return result.getComputation();
     }
 
     private String visitIfStmt(JmmNode node, Void unused) {
         StringBuilder code = new StringBuilder();
 
-        var condition = exprVisitor.visit(node.getChild(0));
+        if (node.getNumChildren() == 0) {
+            return "";
+        }
+
+        OllirExprResult condition = exprVisitor.visit(node.getChild(0));
         code.append(condition.getComputation());
 
+        String labelThen = "then_" + ollirTypes.nextTemp("label");
         String labelElse = "else_" + ollirTypes.nextTemp("label");
-        String labelEndIf = "endif_" + ollirTypes.nextTemp("label");
+        String labelEnd = "endif_" + ollirTypes.nextTemp("label");
 
-        code.append("if (").append(condition.getCode()).append(") goto ").append(labelElse).append(";\n");
+        String conditionCode = condition.getCode();
+        if (!conditionCode.endsWith(".bool")) {
+            String tempVar = ollirTypes.nextTemp();
+            code.append("   ").append(tempVar).append(".bool :=.bool ").append(conditionCode).append(" !=.bool 0.bool;\n");
+            conditionCode = tempVar + ".bool";
+        }
 
-        code.append(visit(node.getChild(1)));
+        code.append("   if (").append(conditionCode).append(") goto ").append(labelThen).append(";\n");
 
-        code.append("goto ").append(labelEndIf).append(";\n");
-        code.append(labelElse).append(":\n");
+        code.append("   goto ").append(labelElse).append(";\n");
+
+        code.append("   ").append(labelThen).append(":\n");
+
+        if (node.getNumChildren() > 1) {
+            code.append(visit(node.getChild(1)));
+        }
+
+        code.append("   goto ").append(labelEnd).append(";\n");
+
+        code.append("   ").append(labelElse).append(":\n");
 
         if (node.getNumChildren() > 2) {
             code.append(visit(node.getChild(2)));
         }
 
-        code.append(labelEndIf).append(":\n");
+        code.append("   ").append(labelEnd).append(":\n");
 
         return code.toString();
     }
@@ -89,21 +114,24 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     private String visitWhileStmt(JmmNode node, Void unused) {
         StringBuilder code = new StringBuilder();
 
-        String labelLoop = "loop_" + ollirTypes.nextTemp("label");
-        String labelEnd = "end_" + ollirTypes.nextTemp("label");
+        String loopLabel = "loop" + ollirTypes.nextTemp("");
+        String endLabel = "end" + ollirTypes.nextTemp("");
 
-        code.append(labelLoop).append(":\n");
+        code.append("   ").append(loopLabel).append(":\n");
 
-        var condition = exprVisitor.visit(node.getChild(0));
-        code.append(condition.getComputation());
+        OllirExprResult condResult = exprVisitor.visit(node.getChild(0));
+        code.append("   ").append(condResult.getComputation());
 
-        code.append("if (!").append(condition.getCode()).append(") goto ").append(labelEnd).append(";\n");
+        code.append("   if (").append(condResult.getCode()).append(" ==.bool 0.bool) goto ").append(endLabel).append(";\n");
 
-        code.append(visit(node.getChild(1)));
+        if (node.getNumChildren() > 1) {
+            String bodyCode = visit(node.getChild(1));
+            code.append(bodyCode);
+        }
 
-        code.append("goto ").append(labelLoop).append(";\n");
+        code.append("   goto ").append(loopLabel).append(";\n");
 
-        code.append(labelEnd).append(":\n");
+        code.append("   ").append(endLabel).append(":\n");
 
         return code.toString();
     }
@@ -150,41 +178,52 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         String typeString = ollirTypes.toOllirType(thisType);
         String varName = left.get("name");
 
-        JmmNode current = node;
-        String currentMethod = null;
-        while (current != null && currentMethod == null) {
-            if (current.getKind().equals("MethodDeclaration")) {
-                currentMethod = current.get("method");
+        if (thisType.isArray()) {
+            if (rhs.getCode().isEmpty()) {
+                code.append(varName).append(typeString)
+                        .append(" :=").append(typeString)
+                        .append(" new(array, 10).array.i32;\n");
+            } else {
+                code.append(varName).append(typeString)
+                        .append(" :=").append(typeString)
+                        .append(" ").append(rhs.getCode()).append(";\n");
             }
-            current = current.getParent();
-        }
-
-        boolean isLocal = false;
-        if (currentMethod != null) {
-            isLocal = table.getLocalVariables(currentMethod).stream()
-                    .anyMatch(symbol -> symbol.getName().equals(varName)) ||
-                    table.getParameters(currentMethod).stream()
-                            .anyMatch(symbol -> symbol.getName().equals(varName));
-        }
-
-        boolean isField = !isLocal && table.getFields().stream()
-                .anyMatch(field -> field.getName().equals(varName));
-
-        if (isField) {
-            code.append("putfield(this, ")
-                    .append(varName).append(typeString)
-                    .append(", ")
-                    .append(rhs.getCode())
-                    .append(")").append(typeString)
-                    .append(END_STMT);
         } else {
-            code.append(varName).append(typeString)
-                    .append(SPACE)
-                    .append(ASSIGN)
-                    .append(typeString)
-                    .append(SPACE)
-                    .append(rhs.getCode())
-                    .append(END_STMT);
+            JmmNode current = node;
+            String currentMethod = null;
+            while (current != null && currentMethod == null) {
+                if (current.getKind().equals("MethodDeclaration")) {
+                    currentMethod = current.get("method");
+                }
+                current = current.getParent();
+            }
+
+            boolean isLocal = false;
+            if (currentMethod != null) {
+                isLocal = table.getLocalVariables(currentMethod).stream()
+                        .anyMatch(symbol -> symbol.getName().equals(varName)) ||
+                        table.getParameters(currentMethod).stream()
+                                .anyMatch(symbol -> symbol.getName().equals(varName));
+            }
+
+            boolean isField = !isLocal && table.getFields().stream()
+                    .anyMatch(field -> field.getName().equals(varName));
+
+            if (isField) {
+                code.append("putfield(this, ")
+                        .append(varName).append(typeString)
+                        .append(", ")
+                        .append(rhs.getCode())
+                        .append(")").append(typeString)
+                        .append(";\n");
+            } else {
+                code.append(varName).append(typeString)
+                        .append(" :=")
+                        .append(typeString)
+                        .append(" ")
+                        .append(rhs.getCode())
+                        .append(";\n");
+            }
         }
 
         return code.toString();
@@ -194,24 +233,24 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     private String visitReturn(JmmNode node, Void unused) {
         JmmNode methodNode = findParentMethod(node);
         String methodName = methodNode.get("method");
-
         Type retType = table.getReturnType(methodName);
-
 
         StringBuilder code = new StringBuilder();
 
-
         var expr = node.getNumChildren() > 0 ? exprVisitor.visit(node.getChild(0)) : OllirExprResult.EMPTY;
 
-
         code.append(expr.getComputation());
-        code.append("ret");
-        code.append(ollirTypes.toOllirType(retType));
-        code.append(SPACE);
+
+        if (retType.isArray()) {
+            code.append("ret.array.i32 ");
+        } else {
+            code.append("ret");
+            code.append(ollirTypes.toOllirType(retType));
+            code.append(" ");
+        }
 
         code.append(expr.getCode());
-
-        code.append(END_STMT);
+        code.append(";\n");
 
         return code.toString();
     }
@@ -237,20 +276,16 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitMethodDecl(JmmNode node, Void unused) {
-
         StringBuilder code = new StringBuilder(".method ");
 
         boolean isPublic = node.getBoolean("isPublic", false);
-
         if (isPublic) {
             code.append("public ");
         }
 
-        // name
         var name = node.get("method");
         code.append(name);
 
-        // params
         var paramNodes = node.getChildren().stream()
                 .filter(child -> child.getKind().equals("Parameter"))
                 .collect(Collectors.toList());
@@ -259,21 +294,23 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 .map(this::visit)
                 .collect(Collectors.joining(", "));
 
-        code.append("(" + paramsCode + ")");
+        code.append("(").append(paramsCode).append(")");
 
         Type returnType = table.getReturnType(name);
-        code.append(ollirTypes.toOllirType(returnType));
-        code.append(L_BRACKET);
+        if (returnType.isArray()) {
+            code.append(".array.i32");
+        } else {
+            code.append(ollirTypes.toOllirType(returnType));
+        }
 
+        code.append(" {\n");
 
-        // rest of its children stmts
         var stmtsCode = node.getChildren(STMT).stream()
                 .map(this::visit)
                 .collect(Collectors.joining("\n   ", "   ", ""));
 
         code.append(stmtsCode);
-        code.append(R_BRACKET);
-        code.append(NL);
+        code.append("}\n\n");
 
         return code.toString();
     }

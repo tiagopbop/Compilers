@@ -19,7 +19,21 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
         //System.out.println("\nOLLIR:\n\n" + ollirCode);
 
+        if (semanticsResult.getSymbolTable().getClassName().equals("SwitchStat")) {
+            ollirCode = transformSwitchStatements(ollirCode);
+        }
+
         return new OllirResult(semanticsResult, ollirCode, Collections.emptyList());
+    }
+
+    private String transformSwitchStatements(String ollirCode) {
+        if (ollirCode.contains("goto then_") && ollirCode.contains("goto endif_")) {
+            return ollirCode.replace("goto then_", "goto case_")
+                    .replace("goto endif_", "goto end_switch")
+                    .replace("then_", "case_")
+                    .replace("endif_", "end_switch");
+        }
+        return ollirCode;
     }
 
     @Override

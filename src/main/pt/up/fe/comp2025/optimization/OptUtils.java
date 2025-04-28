@@ -49,15 +49,19 @@ public class OptUtils {
         String typeName = type.getName();
         boolean isArray = type.isArray();
 
+        if (isArray) {
+            return ".array.i32";
+        }
+
         String baseType = switch (typeName) {
             case "int" -> ".i32";
             case "boolean" -> ".bool";
             case "void" -> ".V";
             case "String" -> ".String";
-            default -> "." + typeName; // For class types
+            default -> "." + typeName;
         };
 
-        return isArray ? baseType + "[]" : baseType;
+        return baseType;
     }
 
     private String toOllirType(String typeName) {

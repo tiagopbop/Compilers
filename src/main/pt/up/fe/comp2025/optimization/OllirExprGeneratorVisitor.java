@@ -44,35 +44,63 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
     }
 
     private OllirExprResult visitBooleanExpr(JmmNode node, Void unused) {
+        var op = node.get("operation");
+
+        if ("&&".equals(op)) {
+            // Handle short-circuit here (only if not in control flow)
+            String labelFalse = "false_" + ollirTypes.nextTemp("label");
+            String labelEnd = "end_" + ollirTypes.nextTemp("label");
+
+            var left = visit(node.getChild(0));
+            var right = visit(node.getChild(1));
+
+            String resultTemp = ollirTypes.nextTemp() + ".bool";
+            StringBuilder computation = new StringBuilder();
+
+            computation.append(left.getComputation());
+            computation.append("if (!.bool ").append(left.getCode()).append(") goto ").append(labelFalse).append(";\n");
+
+            computation.append(right.getComputation());
+            computation.append("if (!.bool ").append(right.getCode()).append(") goto ").append(labelFalse).append(";\n");
+
+            // Both true
+            computation.append(resultTemp).append(" :=.bool 1.bool;\n");
+            computation.append("goto ").append(labelEnd).append(";\n");
+
+            // False case
+            computation.append(labelFalse).append(":\n");
+            computation.append(resultTemp).append(" :=.bool 0.bool;\n");
+
+            // End label
+            computation.append(labelEnd).append(":\n");
+
+            return new OllirExprResult(resultTemp, computation.toString());
+        }
+
+        // Other boolean ops like <
         var left = visit(node.getChild(0));
         var right = visit(node.getChild(1));
 
         StringBuilder computation = new StringBuilder();
-
         computation.append(left.getComputation());
         computation.append(right.getComputation());
 
-        String op = node.get("operation");
-
         String ollirOp = switch(op) {
-            case "&&" -> "&&.bool";
             case "<" -> "<.i32";
             default -> throw new RuntimeException("Unsupported boolean operation: " + op);
         };
 
-        Type resType = types.getExprType(node);
-        String resOllirType = ollirTypes.toOllirType(resType);
+        String resOllirType = ".bool";
 
         String tempVar = ollirTypes.nextTemp();
         String code = tempVar + resOllirType;
 
-        computation.append(tempVar).append(resOllirType).append(" :=").append(resOllirType).append(" ");
-        computation.append(left.getCode()).append(" ");
-        computation.append(ollirOp).append(" ");
-        computation.append(right.getCode()).append(";\n");
+        computation.append(code).append(" :=").append(resOllirType).append(" ")
+                .append(left.getCode()).append(" ").append(ollirOp).append(" ").append(right.getCode()).append(";\n");
 
         return new OllirExprResult(code, computation.toString());
     }
+
 
     private OllirExprResult visitBooleanLiteral(JmmNode node, Void unused) {
         String value = node.get("value");

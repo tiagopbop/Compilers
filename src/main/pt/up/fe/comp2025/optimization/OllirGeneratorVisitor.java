@@ -237,7 +237,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitMethodDecl(JmmNode node, Void unused) {
-
         StringBuilder code = new StringBuilder(".method ");
 
         boolean isPublic = node.getBoolean("isPublic", false);
@@ -246,11 +245,11 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             code.append("public ");
         }
 
-        // name
+        // Method name
         var name = node.get("method");
         code.append(name);
 
-        // params
+        // Parameters
         var paramNodes = node.getChildren().stream()
                 .filter(child -> child.getKind().equals("Parameter"))
                 .collect(Collectors.toList());
@@ -259,24 +258,31 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 .map(this::visit)
                 .collect(Collectors.joining(", "));
 
-        code.append("(" + paramsCode + ")");
+        code.append("(").append(paramsCode).append(")");
 
+        // Return type
         Type returnType = table.getReturnType(name);
         code.append(ollirTypes.toOllirType(returnType));
         code.append(L_BRACKET);
 
-
-        // rest of its children stmts
+        // Body statements
         var stmtsCode = node.getChildren(STMT).stream()
                 .map(this::visit)
                 .collect(Collectors.joining("\n   ", "   ", ""));
 
         code.append(stmtsCode);
+
+        // Add ret.V if method returns void
+        if (returnType.getName().equals("void")) {
+            code.append("\n   ret.V;\n");
+        }
+
         code.append(R_BRACKET);
         code.append(NL);
 
         return code.toString();
     }
+
 
 
     private String visitClass(JmmNode node, Void unused) {

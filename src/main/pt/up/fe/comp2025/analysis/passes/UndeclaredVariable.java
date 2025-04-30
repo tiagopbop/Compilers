@@ -52,6 +52,10 @@ public class UndeclaredVariable extends AnalysisVisitor {
                 .anyMatch(field -> field.getName().equals(varRefName)))    {
             return null;
         }
+        if (table.getImports().stream()
+                .anyMatch(imp -> imp.endsWith(varRefName))) {
+            return null;
+        }
 
 
         // Create error report

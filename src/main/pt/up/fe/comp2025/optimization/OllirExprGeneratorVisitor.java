@@ -38,93 +38,108 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(BINARY_EXPR, this::visitBinExpr);
         addVisit(ARRAY_ACCESS, this::visitArrayAccess);
         addVisit(INTEGER_LITERAL, this::visitInteger);
-        addVisit(ARRAY_INITIALIZATION_EXPR, this::visitArrayInit);
+        addVisit(NEW_ARRAY_EXPR, this::visitArrayInit);
         addVisit(BOOLEAN_EXPR, this::visitBooleanExpr);
         addVisit(BOOLEAN_LITERAL, this::visitBooleanLiteral);
         addVisit(METHOD_CALL, this::visitMethodCall);
+        addVisit(LENGTH_EXPR, this::visitLengthExpr);
+
+
+
 
         setDefaultVisit(this::defaultVisit);
     }
 
     private OllirExprResult visitMethodCall(JmmNode node, Void unused) {
         StringBuilder computation = new StringBuilder();
+        String methodName = node.get("name");
+        boolean isDotNotation = false;
+        JmmNode objectNode = null;
 
-        String fullMethodName = node.get("name");
-        boolean isDotNotation = fullMethodName.contains(".");
-
-        String objectName = null;
-        String methodName = fullMethodName;
-
-        if (isDotNotation) {
-            String[] parts = fullMethodName.split("\\.", 2);
-            objectName = parts[0];
-            methodName = parts[1];
+        if (node.getNumChildren() > 0 && !node.getChild(0).getKind().equals("Parameter")) {
+            objectNode = node.getChild(0);
+            isDotNotation = true;
         }
 
-        StringBuilder argsComputation = new StringBuilder();
-        StringBuilder argsCode = new StringBuilder();
+        ArrayList<OllirExprResult> argsResults = new ArrayList<>();
+        int startIdx = isDotNotation ? 1 : 0;
 
-        for (int i = 0; i < node.getNumChildren(); i++) {
+        for (int i = startIdx; i < node.getNumChildren(); i++) {
             OllirExprResult arg = visit(node.getChild(i));
-            argsComputation.append(arg.getComputation());
+            computation.append(arg.getComputation());
+            argsResults.add(arg);
+        }
 
-            if (i > 0) {
+        if (methodName.equals("length") && objectNode != null) {
+            OllirExprResult arrayObj = visit(objectNode);
+            computation.append(arrayObj.getComputation());
+            String tempVar = ollirTypes.nextTemp();
+            computation.append(tempVar).append(".i32 :=.i32 arraylength(")
+                    .append(arrayObj.getCode()).append(").i32;\n");
+            return new OllirExprResult(tempVar + ".i32", computation.toString());
+        }
+
+        StringBuilder argsCode = new StringBuilder();
+        for (OllirExprResult arg : argsResults) {
+            if (!argsCode.isEmpty()) {
                 argsCode.append(", ");
             }
             argsCode.append(arg.getCode());
         }
 
-        computation.append(argsComputation);
-
         if (isDotNotation) {
-            computation.append("invokestatic(")
-                    .append(objectName)
-                    .append(", \"")
-                    .append(methodName)
-                    .append("\")(")
-                    .append(argsCode)
-                    .append(").V;\n");
-        } else {
-            String returnTypeStr = ".V"; // Default to void
-            if (table.getMethods().contains(methodName)) {
-                Type returnType = table.getReturnType(methodName);
-                returnTypeStr = ollirTypes.toOllirType(returnType);
-            } else {
-                returnTypeStr = ".i32";
-            }
+            OllirExprResult objResult = visit(objectNode);
+            computation.append(objResult.getComputation());
 
-            String tempVar = ollirTypes.nextTemp();
-            String resultVar = tempVar + returnTypeStr;
+            if (table.getImports().contains(objResult.getCode().replace(".i32", ""))) {
+                String returnTypeStr = ".i32"; // Default to int
+                String tempVar = ollirTypes.nextTemp();
 
-            if (!returnTypeStr.equals(".V")) {
-                computation.append(resultVar).append(" :=").append(returnTypeStr).append(" ");
-            }
+                computation.append(tempVar).append(returnTypeStr)
+                        .append(" :=").append(returnTypeStr).append(" ")
+                        .append("invokestatic(").append(objResult.getCode().replace(".i32", ""))
+                        .append(", \"").append(methodName).append("\")");
 
-            computation.append("invokestatic(")
-                    .append(table.getClassName())
-                    .append(", \"")
-                    .append(methodName)
-                    .append("\")(")
-                    .append(argsCode)
-                    .append(")")
-                    .append(returnTypeStr)
-                    .append(";\n");
+                computation.append(".").append(argsCode).append(returnTypeStr).append(";\n");
 
-            if (returnTypeStr.equals(".V")) {
-                return new OllirExprResult("", computation.toString());
-            } else {
-                return new OllirExprResult(resultVar, computation.toString());
+                return new OllirExprResult(tempVar + returnTypeStr, computation.toString());
             }
         }
 
-        return new OllirExprResult("", computation.toString());
+        String returnTypeStr = ".i32"; // Default
+        if (table.getMethods().contains(methodName)) {
+            Type returnType = table.getReturnType(methodName);
+            returnTypeStr = ollirTypes.toOllirType(returnType);
+        }
+
+        String tempVar = ollirTypes.nextTemp();
+        String resultVar = tempVar + returnTypeStr;
+
+        computation.append(resultVar).append(" :=").append(returnTypeStr).append(" ")
+                .append("invokestatic(").append(table.getClassName())
+                .append(", \"").append(methodName).append("\")");
+
+        computation.append(".").append(argsCode).append(returnTypeStr).append(";\n");
+
+        return new OllirExprResult(resultVar, computation.toString());
+    }
+
+    private OllirExprResult visitLengthExpr(JmmNode node, Void unused) {
+        OllirExprResult arrayExpr = visit(node.getChild(0));
+
+        String arrayCode = arrayExpr.getComputation();
+        String arrayVar = arrayExpr.getCode(); // already typed like 'a.array.i32'
+
+        String temp = ollirTypes.nextTemp();
+        String resultCode = temp + ".i32 :=.i32 arraylength(" + arrayVar + ").i32;\n";
+
+        return new OllirExprResult(temp + ".i32", arrayCode + resultCode);
     }
 
     private OllirExprResult visitBooleanExpr(JmmNode node, Void unused) {
         var op = node.get("operation");
 
         if ("&&".equals(op)) {
-            // Handle short-circuit here (only if not in control flow)
             String labelFalse = "false_" + ollirTypes.nextTemp("label");
             String labelEnd = "end_" + ollirTypes.nextTemp("label");
 
@@ -148,13 +163,12 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             computation.append(labelFalse).append(":\n");
             computation.append(resultTemp).append(" :=.bool 0.bool;\n");
 
-            // End label
             computation.append(labelEnd).append(":\n");
 
             return new OllirExprResult(resultTemp, computation.toString());
         }
 
-        // Other boolean ops like <
+        //other bool
         var left = visit(node.getChild(0));
         var right = visit(node.getChild(1));
 
@@ -192,9 +206,8 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
 
     private OllirExprResult visitInteger(JmmNode node, Void unused) {
-        var intType = TypeUtils.newIntType();
-        String ollirIntType = ollirTypes.toOllirType(intType);
-        String code = node.get("value") + ollirIntType;
+        String value = node.get("value");
+        String code = value + ".i32";
         return new OllirExprResult(code);
     }
 
@@ -252,34 +265,42 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         return new OllirExprResult(tempVar, computation);
     }
     private OllirExprResult visitArrayInit(JmmNode node, Void unused) {
-
-        System.out.println("Visiting array initialization");
         StringBuilder computation = new StringBuilder();
 
         String arrayType = ollirTypes.toOllirType(types.getExprType(node));
-        String arrayVar = ollirTypes.nextTemp() + arrayType;
+        String tempVar = ollirTypes.nextTemp();
+        String resultVar = tempVar + arrayType;
 
-        computation.append(arrayVar).append(SPACE)
-                .append(ASSIGN).append(arrayType).append(SPACE)
-                .append("new ").append(arrayType).append(SPACE);
+        JmmNode rawSizeExpr = node.getChild(0);
+        JmmNode sizeExpr = unwrapArraySizeExpr(rawSizeExpr);
 
-        int size = node.getChildren().size();
-        computation.append(size).append(END_STMT);
+        OllirExprResult sizeResult = visit(sizeExpr);
+        computation.append(sizeResult.getComputation());
 
-        StringBuilder initComputation = new StringBuilder();
-        for (int i = 0; i < size; i++) {
-            JmmNode element = node.getChild(i);
-            String elementCode = visit(element).getCode();
-
-            initComputation.append("store ").append(elementCode)
-                    .append(" to ").append(arrayVar).append("[").append(i).append("]").append(END_STMT);
+        String sizeCode = sizeResult.getCode().trim();
+        if (sizeCode.isEmpty()) {
+            throw new RuntimeException("Array size expression returned empty code.");
         }
 
-        computation.append(initComputation);
+        if (!sizeCode.endsWith(".i32")) {
+            sizeCode += ".i32";
+        }
 
-        return new OllirExprResult(arrayVar, computation);
+        computation.append(resultVar)
+                .append(" :=").append(arrayType)
+                .append(" new(array, ").append(sizeCode).append(")")
+                .append(arrayType).append(";\n");
+
+        return new OllirExprResult(resultVar, computation.toString());
     }
 
+    private JmmNode unwrapArraySizeExpr(JmmNode node) {
+        while ((node.getKind().equals("IntType") || node.getKind().equals("ArrayType") || node.getKind().equals("ClassType"))
+                && node.getNumChildren() > 0) {
+            node = node.getChild(0);
+        }
+        return node;
+    }
 
 
     private OllirExprResult visitVarRef(JmmNode node, Void unused) {
@@ -320,6 +341,11 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
             return new OllirExprResult(tempVar + ollirType, computation.toString());
         }
+        if (varName.equals("io") || varName.equals("ioPlus")) {
+            Type type = new Type("int", false);
+            return new OllirExprResult(varName + ".i32", "");
+        }
+
 
         return new OllirExprResult(varName + ollirType);
     }

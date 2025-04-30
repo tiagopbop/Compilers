@@ -38,6 +38,8 @@ public enum Kind {
     WHILE_STMT,
     IF_STMT,
     VAR_ARG_PARAMETERS,
+    EXPR_STATEMENT,
+    LENGTH_EXPR,
     BOOLEAN_EXPR;
 
 

@@ -64,15 +64,5 @@ public class OptUtils {
         return baseType;
     }
 
-    private String toOllirType(String typeName) {
-
-        String type = "." + switch (typeName) {
-            case "int" -> "i32";
-            default -> throw new NotImplementedException(typeName);
-        };
-
-        return type;
-    }
-
 
 }

@@ -59,6 +59,8 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(WHILE_STMT, this::visitWhileStmt);
         addVisit(METHOD_CALL, this::visitMethodCallStmt);
         addVisit(EXPR_STATEMENT, this::visitExprStmt);
+        addVisit(ARRAY_ASSIGN_STATEMENT, this::visitArrayAssignStatement);
+
 
         setDefaultVisit(this::defaultVisit);
     }
@@ -173,15 +175,34 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitAssignStmt(JmmNode node, Void unused) {
-        var rhs = exprVisitor.visit(node.getChild(1));
         StringBuilder code = new StringBuilder();
-
+        var rhs = exprVisitor.visit(node.getChild(1));
         code.append(rhs.getComputation());
 
         var left = node.getChild(0);
         Type thisType = types.getExprType(left);
         String typeString = ollirTypes.toOllirType(thisType);
         String varName = left.get("name");
+
+        JmmNode current = node;
+        String currentMethod = null;
+        while (current != null && currentMethod == null) {
+            if (current.getKind().equals("MethodDeclaration")) {
+                currentMethod = current.get("method");
+            }
+            current = current.getParent();
+        }
+
+        boolean isLocal = false;
+        if (currentMethod != null) {
+            isLocal = table.getLocalVariables(currentMethod).stream()
+                    .anyMatch(symbol -> symbol.getName().equals(varName)) ||
+                    table.getParameters(currentMethod).stream()
+                            .anyMatch(symbol -> symbol.getName().equals(varName));
+        }
+
+        boolean isField = !isLocal && table.getFields().stream()
+                .anyMatch(field -> field.getName().equals(varName));
 
         if (thisType.isArray()) {
             if (rhs.getCode().isEmpty()) {
@@ -193,43 +214,60 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                         .append(" :=").append(typeString)
                         .append(" ").append(rhs.getCode()).append(";\n");
             }
-        } else {
-            JmmNode current = node;
-            String currentMethod = null;
-            while (current != null && currentMethod == null) {
-                if (current.getKind().equals("MethodDeclaration")) {
-                    currentMethod = current.get("method");
-                }
-                current = current.getParent();
-            }
-
-            boolean isLocal = false;
-            if (currentMethod != null) {
-                isLocal = table.getLocalVariables(currentMethod).stream()
-                        .anyMatch(symbol -> symbol.getName().equals(varName)) ||
-                        table.getParameters(currentMethod).stream()
-                                .anyMatch(symbol -> symbol.getName().equals(varName));
-            }
-
-            boolean isField = !isLocal && table.getFields().stream()
-                    .anyMatch(field -> field.getName().equals(varName));
-
-            if (isField) {
+        }
+        else if (isField) {
+            if (!rhs.getCode().isEmpty()) {
                 code.append("putfield(this, ")
                         .append(varName).append(typeString)
-                        .append(", ")
-                        .append(rhs.getCode())
+                        .append(", ").append(rhs.getCode())
                         .append(")").append(typeString)
                         .append(";\n");
             } else {
-                code.append(varName).append(typeString)
-                        .append(" :=")
-                        .append(typeString)
-                        .append(" ")
-                        .append(rhs.getCode())
-                        .append(";\n");
+                code.append("// warning: empty RHS for field '").append(varName).append("'\n");
             }
         }
+        else {
+            if (!rhs.getCode().isEmpty()) {
+                code.append(varName).append(typeString)
+                        .append(" :=").append(typeString)
+                        .append(" ").append(rhs.getCode())
+                        .append(";\n");
+            } else {
+                code.append("// warning: empty RHS for local '").append(varName).append("'\n");
+            }
+        }
+
+        return code.toString();
+    }
+
+    private String visitArrayAssignStatement(JmmNode node, Void unused) {
+        StringBuilder code = new StringBuilder();
+
+        JmmNode arrayNode = node.getChild(0);
+        JmmNode indexNode = node.getChild(1);
+        JmmNode valueNode = node.getChild(2);
+
+        OllirExprResult arrayRef = exprVisitor.visit(arrayNode);
+        OllirExprResult indexExpr = exprVisitor.visit(indexNode);
+        OllirExprResult valueExpr = exprVisitor.visit(valueNode);
+
+        Type arrayType = types.getExprType(arrayNode);
+        String elementType = ollirTypes.toOllirType(new Type(arrayType.getName(), false));
+        if (elementType.startsWith(".")) {
+            elementType = elementType.substring(1);
+        }
+
+        code.append(indexExpr.getComputation());
+        code.append(valueExpr.getComputation());
+
+        code.append(arrayRef.getCode())
+                .append("[")
+                .append(indexExpr.getCode())
+                .append("].").append(elementType)
+                .append(" :=.").append(elementType)
+                .append(" ")
+                .append(valueExpr.getCode())
+                .append(";\n");
 
         return code.toString();
     }

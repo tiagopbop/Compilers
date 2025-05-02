@@ -34,11 +34,22 @@ public class OperationsTypeCheck extends AnalysisVisitor {
         JmmNode rightOperand = node.getChild(1);
 
         List<Object> leftType = getOperandType(leftOperand, table);
+        List<Object> rightType = getOperandType(rightOperand, table);
+
+        if (leftType.isEmpty() || rightType.isEmpty()) {
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    node.getLine(),
+                    node.getColumn(),
+                    "Could not determine type of operands in binary expression",
+                    null
+            ));
+            return null;
+        }
+
         String leftTypeName = leftType.get(0).toString();
         String isLeftArray = leftType.get(1).toString();
-
-        List<Object> rightType = getOperandType(rightOperand, table);
-        String rightTypeName = rightType.getFirst().toString();
+        String rightTypeName = rightType.get(0).toString();
         String isRightArray = rightType.get(1).toString();
 
         if (op.equals("*") || op.equals("/") || op.equals("-") || op.equals("+")) {
@@ -156,47 +167,45 @@ public class OperationsTypeCheck extends AnalysisVisitor {
 
         if (operand.isInstance(Kind.PARENTHESIS_EXPR)) {
             return getOperandType(operand.getChild(0), table);
-
         } else if (operand.isInstance(Kind.VAR_REF_EXPR)) {
             String varName = operand.get("name");
-
             for (String method : table.getMethods()) {
                 for (Symbol symbol : table.getLocalVariables(method)) {
                     if (symbol.getName().equals(varName)) {
                         result.add(symbol.getType().getName());
-                        result.add(symbol.getType().isArray()); //  array flag
+                        result.add(symbol.getType().isArray());
+                        return result;
+                    }
+                }
+                for (Symbol symbol : table.getParameters(method)) {
+                    if (symbol.getName().equals(varName)) {
+                        result.add(symbol.getType().getName());
+                        result.add(symbol.getType().isArray());
                         return result;
                     }
                 }
             }
-
             for (Symbol field : table.getFields()) {
                 if (field.getName().equals(varName)) {
                     result.add(field.getType().getName());
-                    result.add(field.getType().isArray()); // array flag
+                    result.add(field.getType().isArray());
                     return result;
                 }
             }
-
-        } else if (operand.isInstance(Kind.BINARY_EXPR)) {
-
-            String op = operand.get("operation");
-
-            if (op.equals("+") ||  op.equals("-") ||  op.equals("*") ||  op.equals("/")) {
-                result.add("int");
-                result.add(false);
-            } else {
-                result.add("boolean");
+        } else if (operand.isInstance(Kind.ARRAY_ACCESS)) {
+            List<Object> arrayType = getOperandType(operand.getChild(0), table);
+            if (!arrayType.isEmpty()) {
+                result.add(arrayType.get(0));
                 result.add(false);
             }
+        } else if (operand.isInstance(Kind.BINARY_EXPR)) {
+            String op = operand.get("operation");
 
+            if (op.equals("+") || op.equals("-") || op.equals("*") || op.equals("/")) {
+                result.add("int");
+                result.add(false);
+            }
         } else if (operand.isInstance(Kind.BOOLEAN_EXPR)) {
-
-            List<Object> left = getOperandType(operand.getChild(0), table);
-            List<Object> right = getOperandType(operand.getChild(1), table);
-
-            if (left.isEmpty() || right.isEmpty()) return result;
-
             result.add("boolean");
             result.add(false);
 

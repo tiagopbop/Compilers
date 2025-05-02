@@ -70,15 +70,6 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             argsResults.add(arg);
         }
 
-        if (methodName.equals("length") && objectNode != null) {
-            OllirExprResult arrayObj = visit(objectNode);
-            computation.append(arrayObj.getComputation());
-            String tempVar = ollirTypes.nextTemp();
-            computation.append(tempVar).append(".i32 :=.i32 arraylength(")
-                    .append(arrayObj.getCode()).append(").i32;\n");
-            return new OllirExprResult(tempVar + ".i32", computation.toString());
-        }
-
         StringBuilder argsCode = new StringBuilder();
         for (OllirExprResult arg : argsResults) {
             if (!argsCode.isEmpty()) {
@@ -87,42 +78,50 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             argsCode.append(arg.getCode());
         }
 
-        String returnTypeStr = ".i32";
-        if (table.getMethods().contains(methodName)) {
-            Type returnType = table.getReturnType(methodName);
-            returnTypeStr = ollirTypes.toOllirType(returnType);
-        }
+        Type returnType = table.getMethods().contains(methodName)
+                ? table.getReturnType(methodName)
+                : new Type("void", false);
 
+        String returnTypeStr = ollirTypes.toOllirType(returnType);
         String tempVar = ollirTypes.nextTemp();
         String resultVar = tempVar + returnTypeStr;
 
+        StringBuilder callCode = new StringBuilder();
+
         if (isDotNotation) {
-            OllirExprResult objResult = visit(objectNode);
-            computation.append(objResult.getComputation());
+            String objectName = objectNode.get("name");
 
-            computation.append(resultVar).append(" :=").append(returnTypeStr).append(" ")
-                    .append("invokevirtual(").append(objResult.getCode()).append(", \"")
-                    .append(methodName).append("\"");
-
-            if (!argsCode.isEmpty()) {
-                computation.append(", ").append(argsCode);
+            if (table.getImports().contains(objectName)) {
+                callCode.append("invokestatic(").append(objectName).append(", \"")
+                        .append(methodName).append("\"");
+            } else {
+                OllirExprResult objResult = visit(objectNode);
+                computation.append(objResult.getComputation());
+                callCode.append("invokevirtual(").append(objResult.getCode()).append(", \"")
+                        .append(methodName).append("\"");
             }
 
-            computation.append(")").append(returnTypeStr).append(";\n");
         } else {
-            computation.append(resultVar).append(" :=").append(returnTypeStr).append(" ")
-                    .append("invokestatic(").append(table.getClassName()).append(", \"")
+            callCode.append("invokestatic(").append(table.getClassName()).append(", \"")
                     .append(methodName).append("\"");
-
-            if (!argsCode.isEmpty()) {
-                computation.append(", ").append(argsCode);
-            }
-
-            computation.append(")").append(returnTypeStr).append(";\n");
         }
 
-        return new OllirExprResult(resultVar, computation.toString());
+        if (!argsCode.isEmpty()) {
+            callCode.append(", ").append(argsCode);
+        }
+
+        callCode.append(")").append(returnTypeStr);
+
+        if (returnType.getName().equals("void")) {
+            computation.append(callCode).append(";\n");
+            return new OllirExprResult("", computation.toString());
+        } else {
+            computation.append(resultVar).append(" :=").append(returnTypeStr)
+                    .append(" ").append(callCode).append(";\n");
+            return new OllirExprResult(resultVar, computation.toString());
+        }
     }
+
 
     private OllirExprResult visitLengthExpr(JmmNode node, Void unused) {
         OllirExprResult arrayExpr = visit(node.getChild(0));
@@ -357,6 +356,9 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
     private OllirExprResult visitVarRef(JmmNode node, Void unused) {
         String varName = node.get("name");
+        if (table.getImports().contains(varName)) {
+            return new OllirExprResult(varName, "");
+        }
         Type varType = types.getExprType(node);
         String ollirType = ollirTypes.toOllirType(varType);
 

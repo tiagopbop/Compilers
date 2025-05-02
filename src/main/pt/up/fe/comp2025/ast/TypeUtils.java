@@ -51,7 +51,7 @@ public class TypeUtils {
 
             return new Type(getExprType(expr.getChild(0)).getName(), true);
 
-        } else if (Kind.VAR_REF_EXPR.check(expr)) {
+        }else if (Kind.VAR_REF_EXPR.check(expr)) {
             String varName = expr.get("name");
 
             for (String method : table.getMethods()) {
@@ -73,7 +73,15 @@ public class TypeUtils {
                 }
             }
 
-        } else if (Kind.BINARY_EXPR.check(expr)) {
+            for (String imp : table.getImports()) {
+                String lastPart = imp.contains(".") ? imp.substring(imp.lastIndexOf('.') + 1) : imp;
+                if (lastPart.equals(varName)) {
+                    return new Type(varName, false);
+                }
+            }
+            throw new SemanticException("Unknown variable or class reference: " + varName);
+        }
+        else if (Kind.BINARY_EXPR.check(expr)) {
             String op = expr.get("operation");
 
             if (op.equals("+") || op.equals("-") || op.equals("*") || op.equals("/")) {

@@ -1,0 +1,20 @@
+import ioPlus;
+class BooleanArray {
+    public int func() {
+        boolean[] flags;
+        int result;
+
+        flags = new boolean[3];
+        flags[0] = true;
+        flags[1] = false;
+        flags[2] = true;
+
+        if (flags[0]) {
+            result = 1;
+        } else {
+            result = 0;
+        }
+
+        return result;
+    }
+}

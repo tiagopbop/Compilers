@@ -267,6 +267,20 @@ public class OllirTest {
     }
 
     @Test
+    public void controlFlowIfSwitch2() {
+
+        var result = getOllirResult("control_flow/SwitchStat2.jmm");
+
+        var method = CpUtils.getMethod(result, "func");
+
+        var branches = CpUtils.assertInstExists(CondBranchInstruction.class, method, result);
+        CpUtils.assertEquals("Number of branches", 3, branches.size(), result);
+
+        var gotos = CpUtils.assertInstExists(GotoInstruction.class, method, result);
+        CpUtils.assertTrue("Has at least 6 gotos", gotos.size() >= 3, result);
+    }
+
+    @Test
     public void controlFlowWhileSimple() {
 
         var result = getOllirResult("control_flow/SimpleWhileStat.jmm");
@@ -340,6 +354,44 @@ public class OllirTest {
                 .flatMap(assign -> CpUtils.getElements(assign.getRhs()).stream())
                 .filter(element -> element instanceof ArrayOperand).count();
         CpUtils.assertEquals("Number of array reads", 6, numArrayReads, result);
+    }
+
+    @Test
+    public void arraysBooleanArray() {
+        var result = getOllirResult("arrays/BooleanArray.jmm");
+
+        var method = CpUtils.getMethod(result, "func");
+
+        var newCalls = CpUtils.assertInstExists(CallInstruction.class, method, result)
+                .stream()
+                .filter(call -> call instanceof NewInstruction)
+                .collect(Collectors.toList());
+        CpUtils.assertTrue("Has new array call", newCalls.size() >= 1, result);
+
+        var assigns = CpUtils.assertInstExists(AssignInstruction.class, method, result);
+        var numArrayStores = assigns.stream()
+                .filter(assign -> assign.getDest() instanceof ArrayOperand)
+                .count();
+        CpUtils.assertTrue("Has array stores", numArrayStores >= 1, result);
+    }
+
+    @Test
+    public void arrayOperations() {
+        var result = getOllirResult("arrays/ArrayOperations.jmm");
+
+        var method = CpUtils.getMethod(result, "func");
+
+        var newCalls = CpUtils.assertInstExists(CallInstruction.class, method, result)
+                .stream()
+                .filter(call -> call instanceof NewInstruction)
+                .collect(Collectors.toList());
+        CpUtils.assertTrue("Has new array call", newCalls.size() >= 1, result);
+
+        var branches = CpUtils.assertInstExists(CondBranchInstruction.class, method, result);
+        CpUtils.assertTrue("Has conditional branch for loop", branches.size() >= 1, result);
+
+        var gotos = CpUtils.assertInstExists(GotoInstruction.class, method, result);
+        CpUtils.assertTrue("Has goto for loop", gotos.size() >= 1, result);
     }
 
 }

@@ -82,7 +82,7 @@ stmt
 
 expr
     : '[' expr (',' expr)* ']'                                                               #ArrayInitializationExpr
-    | 'new' INT '[' expr ']'                                                                 #NewArrayExpr
+    | 'new' type '[' expr ']'                                                                 #NewArrayExpr
     | expr '[' expr ']'                                                                      #ArrayAccess
     | 'new' name=ID '(' ')'                                                                  #NewClassExpr
     | expr '.' 'length'                                                                      #LengthExpr

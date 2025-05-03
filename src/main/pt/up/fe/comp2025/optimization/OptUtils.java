@@ -50,7 +50,13 @@ public class OptUtils {
         boolean isArray = type.isArray();
 
         if (isArray) {
-            return ".array.i32";
+            String elementType = switch (typeName) {
+                case "int" -> "i32";
+                case "boolean" -> "bool";
+                case "String" -> "String";
+                default -> typeName;
+            };
+            return ".array." + elementType;
         }
 
         String baseType = switch (typeName) {

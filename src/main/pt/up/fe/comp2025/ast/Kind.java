@@ -41,7 +41,8 @@ public enum Kind {
     EXPR_STATEMENT,
     LENGTH_EXPR,
     ARRAY_ASSIGN_STATEMENT,
-    BOOLEAN_EXPR;
+    BOOLEAN_EXPR,
+    BLOCK_STATEMENT();
 
 
     private final String name;

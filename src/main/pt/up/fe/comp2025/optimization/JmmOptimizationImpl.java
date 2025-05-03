@@ -24,17 +24,12 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
-
-        //TODO: Do your AST-based optimizations here
-
         return semanticsResult;
     }
 
     @Override
     public OllirResult optimize(OllirResult ollirResult) {
-
-        //TODO: Do your OLLIR-based optimizations here
-
+        new RegisterAllocation(ollirResult.getOllirClass(), 4).allocateRegisters();
         return ollirResult;
     }
 

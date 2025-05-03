@@ -85,11 +85,16 @@ public class TypeUtils {
             String op = expr.get("operation");
 
             if (op.equals("+") || op.equals("-") || op.equals("*") || op.equals("/")) {
+                System.out.println("HAHAHHAHAHAHHA");
                 return new Type("int", false);
             } else {
+                System.out.println("BAAHHAHAHAHAHAHA");
                 return new Type("boolean", false);
+
             }
-        } else if (Kind.METHOD_CALL.check(expr)) {
+        }
+
+        else if (Kind.METHOD_CALL.check(expr)) {
             String methodName = expr.get("name");
             if (!table.getMethods().contains(methodName)) {
                 throw new SemanticException("Method '" + methodName + "' not declared.");
@@ -104,9 +109,18 @@ public class TypeUtils {
             return new Type("int", true);
 
         } else if (Kind.BOOLEAN_LITERAL.check(expr)) {
+            System.out.println("CAAHHAHAHAHAHAHA");
+
             return new Type("boolean", false);
 
-        } else if (Kind.INTEGER_LITERAL.check(expr)) {
+        }
+        else if (Kind.BOOLEAN_EXPR.check(expr)) {
+            System.out.println("CAAHHAHAHAHAHAHA");
+
+            return new Type("boolean", false);
+
+        }
+        else if (Kind.INTEGER_LITERAL.check(expr)) {
             return new Type("int", false);
 
         } else if (Kind.THIS_EXPR.check(expr)) {

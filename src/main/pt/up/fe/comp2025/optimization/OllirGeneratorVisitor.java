@@ -290,22 +290,36 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         StringBuilder code = new StringBuilder();
 
-        var expr = node.getNumChildren() > 0 ? exprVisitor.visit(node.getChild(0)) : OllirExprResult.EMPTY;
-
-        code.append(expr.getComputation());
-
-        if (retType.isArray()) {
-            code.append("ret.array.i32 ");
-        } else {
-            code.append("ret");
-            code.append(ollirTypes.toOllirType(retType));
-            code.append(" ");
+        if (node.getNumChildren() == 0) {
+            code.append("ret").append(ollirTypes.toOllirType(retType)).append(";\n");
+            return code.toString();
         }
 
-        code.append(expr.getCode());
-        code.append(";\n");
+        JmmNode exprNode = node.getChild(0);
+        OllirExprResult expr;
+
+        switch (valueOf(toEnumFormat(exprNode.getKind()))) {
+            case INTEGER_LITERAL -> {
+                String value = exprNode.get("value") + ".i32";
+                expr = new OllirExprResult(value, "");
+            }
+            case BOOLEAN_LITERAL -> {
+                String value = exprNode.get("value") + ".bool";
+                expr = new OllirExprResult(value, "");
+            }
+            default -> {
+                expr = exprVisitor.visit(exprNode);
+            }
+        }
+
+
+        code.append(expr.getComputation());
+        code.append("ret").append(ollirTypes.toOllirType(retType)).append(" ").append(expr.getCode()).append(";\n");
 
         return code.toString();
+    }
+    private String toEnumFormat(String kind) {
+        return kind.replaceAll("([a-z])([A-Z]+)", "$1_$2").toUpperCase();
     }
 
     private JmmNode findParentMethod(JmmNode node) {

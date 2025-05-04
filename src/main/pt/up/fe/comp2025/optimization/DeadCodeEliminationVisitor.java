@@ -21,7 +21,6 @@ public class DeadCodeEliminationVisitor extends AJmmVisitor<Void, Boolean> {
         boolean methodChanged = false;
         String methodName = node.get("method");
 
-        System.out.println("DCE: Processing method " + methodName);
 
         boolean foundReturn = false;
         List<Integer> toRemove = new ArrayList<>();
@@ -40,7 +39,6 @@ public class DeadCodeEliminationVisitor extends AJmmVisitor<Void, Boolean> {
             int index = toRemove.get(i);
             node.removeChild(index);
             methodChanged = true;
-            System.out.println("DCE: Removed unreachable statement at index " + index);
         }
 
         return methodChanged;

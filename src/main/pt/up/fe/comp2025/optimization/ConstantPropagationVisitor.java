@@ -51,8 +51,6 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Boolean> {
             changed |= replaceConstants(stmt);
         }
 
-        System.out.println("Constants propagated: " + constants);
-        System.out.println("Any change made: " + changed);
         return changed;
     }
 

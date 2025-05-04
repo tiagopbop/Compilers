@@ -24,8 +24,6 @@ public class RegisterAllocation {
         for (Method method : classUnit.getMethods()) {
             if (method.isConstructMethod()) continue;
 
-            System.out.println("\n>>> Allocating registers for method: " + method.getMethodName());
-
             Map<String, Descriptor> varTable = method.getVarTable();
             Map<String, String> aliasMap = new HashMap<>();
 
@@ -45,7 +43,6 @@ public class RegisterAllocation {
                     if (!lhs.startsWith("tmp") && !rhs.matches("\\d+") &&
                             varTable.containsKey(lhs) && varTable.containsKey(rhs)) {
                         aliasMap.put(lhs, rhs);
-                        System.out.println("Alias detected: " + lhs + " := " + rhs);
                     }
 
                 } catch (Exception ignored) {}
@@ -56,7 +53,6 @@ public class RegisterAllocation {
                 if (var.equals("this")) continue;
                 String root = findRoot(var, aliasMap);
                 rootMap.put(var, root);
-                System.out.println("Variable " + var + " -> root alias: " + root);
             }
 
             Map<String, Integer> regAssignment = new HashMap<>();
@@ -67,11 +63,8 @@ public class RegisterAllocation {
                 regAssignment.putIfAbsent(root, regCounter++);
                 int reg = regAssignment.get(root);
                 varTable.get(var).setVirtualReg(reg);
-                System.out.println("Assigned register " + reg + " to variable " + var);
             }
 
-
-            System.out.println(">>> Finished register allocation for " + method.getMethodName());
         }
     }
 

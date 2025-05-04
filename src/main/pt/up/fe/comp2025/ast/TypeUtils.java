@@ -85,10 +85,8 @@ public class TypeUtils {
             String op = expr.get("operation");
 
             if (op.equals("+") || op.equals("-") || op.equals("*") || op.equals("/")) {
-                System.out.println("HAHAHHAHAHAHHA");
                 return new Type("int", false);
             } else {
-                System.out.println("BAAHHAHAHAHAHAHA");
                 return new Type("boolean", false);
 
             }
@@ -109,13 +107,11 @@ public class TypeUtils {
             return new Type("int", true);
 
         } else if (Kind.BOOLEAN_LITERAL.check(expr)) {
-            System.out.println("CAAHHAHAHAHAHAHA");
 
             return new Type("boolean", false);
 
         }
         else if (Kind.BOOLEAN_EXPR.check(expr)) {
-            System.out.println("CAAHHAHAHAHAHAHA");
 
             return new Type("boolean", false);
 
@@ -131,7 +127,6 @@ public class TypeUtils {
 
         }
 
-        System.out.println("Unknown expression kind in getExprType: " + expr.getKind());
         return new Type("int", false);
     }
 

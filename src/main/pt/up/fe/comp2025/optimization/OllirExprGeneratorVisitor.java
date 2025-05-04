@@ -119,12 +119,10 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
 
     private OllirExprResult visitLengthExpr(JmmNode node, Void unused) {
-        // Visit the array expression
         OllirExprResult arrayExpr = visit(node.getChild(0));
 
         String arrayCode = arrayExpr.getComputation();
 
-        // Get the array variable reference
         String varName = arrayExpr.getCode().split("\\.")[0];
         String arrayRef = varName + ".array.i32";
 

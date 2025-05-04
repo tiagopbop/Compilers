@@ -1,0 +1,93 @@
+package pt.up.fe.comp2025.optimization;
+
+import pt.up.fe.comp.jmm.ast.AJmmVisitor;
+import pt.up.fe.comp.jmm.ast.JmmNode;
+import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
+import pt.up.fe.comp2025.ast.Kind;
+
+import java.util.*;
+
+public class ConstantPropagationVisitor extends AJmmVisitor<Void, Boolean> {
+
+    private final Map<String, String> constants = new HashMap<>();
+    private final Set<String> reassigned = new HashSet<>();
+
+    @Override
+    protected void buildVisitor() {
+        addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
+        setDefaultVisit(this::defaultVisit);
+    }
+
+    private Boolean visitMethodDecl(JmmNode method, Void unused) {
+        constants.clear();
+        reassigned.clear();
+
+        boolean changed = false;
+
+        for (JmmNode stmt : method.getChildren()) {
+            if (stmt.getKind().equals(Kind.ASSIGN_STMT.toString())) {
+                JmmNode lhs = stmt.getChild(0);
+                JmmNode rhs = stmt.getChild(1);
+
+                if (!lhs.getKind().equals(Kind.VAR_REF_EXPR.toString())) continue;
+
+                String varName = lhs.get("name");
+
+                if (constants.containsKey(varName)) {
+                    reassigned.add(varName);
+                    constants.remove(varName);
+                } else if (rhs.getKind().equals(Kind.INTEGER_LITERAL.toString())) {
+                    if (!reassigned.contains(varName)) {
+                        constants.put(varName, rhs.get("value"));
+                    }
+                } else {
+                    reassigned.add(varName);
+                    constants.remove(varName);
+                }
+            }
+        }
+
+        for (JmmNode stmt : method.getChildren()) {
+            changed |= replaceConstants(stmt);
+        }
+
+        System.out.println("Constants propagated: " + constants);
+        System.out.println("Any change made: " + changed);
+        return changed;
+    }
+
+    private boolean replaceConstants(JmmNode node) {
+        boolean changed = false;
+
+        for (int i = 0; i < node.getNumChildren(); i++) {
+            JmmNode child = node.getChild(i);
+
+            if (child.getKind().equals(Kind.VAR_REF_EXPR.toString())) {
+                String varName = child.get("name");
+                if (constants.containsKey(varName)) {
+                    String value = constants.get(varName);
+
+                    JmmNode constNode = new JmmNodeImpl(Collections.singletonList(Kind.INTEGER_LITERAL.toString()));
+                    constNode.put("value", value);
+
+                    node.setChild(constNode, i);
+                    changed = true;
+                }
+            } else {
+                changed |= replaceConstants(child);
+            }
+        }
+
+        return changed;
+    }
+
+
+
+    private Boolean defaultVisit(JmmNode node, Void unused) {
+        boolean changed = false;
+        for (JmmNode child : node.getChildren()) {
+            changed |= visit(child);
+        }
+        return changed;
+    }
+}

@@ -194,7 +194,17 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         var left = node.getChild(0);
         Type leftType = types.getExprType(left);
         String leftTypeString = ollirTypes.toOllirType(leftType);
-        String varName = left.get("name");
+        String varName;
+        switch (left.getKind()) {
+            case "VarRefExpr":
+                varName = left.get("name");
+                break;
+            case "IntegerLiteral":
+                varName = "tmp_int_literal_" + left.get("value");
+                break;
+            default:
+                throw new RuntimeException("Unsupported LHS kind in assignment: " + left.getKind());
+        }
 
         Type rhsType = types.getExprType(node.getChild(1));
 
@@ -350,11 +360,9 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             code.append("public ");
         }
 
-        // Method name
         var name = node.get("method");
         code.append(name);
 
-        // Parameters
         var paramNodes = node.getChildren().stream()
                 .filter(child -> child.getKind().equals("Parameter"))
                 .collect(Collectors.toList());
@@ -365,7 +373,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         code.append("(").append(paramsCode).append(")");
 
-        // Return type
         Type returnType = table.getReturnType(name);
         if (returnType.isArray()) {
             code.append(".array.i32");
@@ -381,7 +388,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         code.append(stmtsCode);
 
-        // Add ret.V if method returns void
         if (returnType.getName().equals("void")) {
             code.append("\n   ret.V;\n");
         }
@@ -412,7 +418,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             code.append(".field ");
             code.append("private ");
 
-            // Field name and type
             code.append(field.getName())
                     .append(ollirTypes.toOllirType(field.getType()))
                     .append(";\n");

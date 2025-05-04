@@ -45,7 +45,7 @@ public class ConstantFoldingVisitor extends AJmmVisitor<Void, Boolean> {
                 case "+" -> result = lval + rval;
                 case "-" -> result = lval - rval;
                 case "*" -> result = lval * rval;
-                case "/" -> result = rval != 0 ? lval / rval : 0; // avoid division by zero
+                case "/" -> result = rval != 0 ? lval / rval : 0;
                 default -> { return false; }
             }
 

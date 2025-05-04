@@ -180,4 +180,34 @@ public class OptimizationsTest {
         CpUtils.assertFindLiteral("15", method, optimized);
     }
 
+    @Test
+    public void unreachableCode() {
+        String filename = "dead_code/unreachableCode.jmm";
+
+        var original = getOllirResult(filename);
+        var optimized = getOllirResultOpt(filename);
+
+        CpUtils.assertTrue("Expected code to change with -o flag for unreachable code test",
+                !original.getOllirCode().equals(optimized.getOllirCode()),
+                optimized);
+
+        var method = CpUtils.getMethod(optimized, "bar");
+
+        String ollirCode = optimized.getOllirCode();
+        int returnCount = 0;
+        int index = 0;
+        while ((index = ollirCode.indexOf("ret.i32", index)) != -1) {
+            returnCount++;
+            index += "ret.i32".length();
+        }
+
+
+        CpUtils.assertTrue("Expected only one return statement in the OLLIR code",
+                returnCount == 1, optimized);
+
+        boolean foundB = ollirCode.contains("b.i32");
+        CpUtils.assertTrue("Expected no assignments to 'b' in the OLLIR code",
+                !foundB, optimized);
+    }
+
 }

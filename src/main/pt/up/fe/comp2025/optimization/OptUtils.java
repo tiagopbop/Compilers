@@ -31,7 +31,6 @@ public class OptUtils {
 
     public String nextTemp(String prefix) {
 
-        // Subtract 1 because the base is 1
         var nextTempNum = temporaries.add(prefix) - 1;
 
         return prefix + nextTempNum;

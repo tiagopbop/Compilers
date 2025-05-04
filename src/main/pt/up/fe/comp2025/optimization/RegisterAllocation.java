@@ -29,7 +29,6 @@ public class RegisterAllocation {
             Map<String, Descriptor> varTable = method.getVarTable();
             Map<String, String> aliasMap = new HashMap<>();
 
-// Build alias map from simple assignments
             method.getInstructions().forEach(instr -> {
                 String instrStr = instr.toString().trim();
 

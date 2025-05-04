@@ -7,11 +7,9 @@ import pt.up.fe.comp2025.ast.Kind;
 import java.util.*;
 
 /**
- * A visitor that eliminates dead code, specifically unused assignments after constant propagation.
+ * A visitor that eliminates dead code, specifically code that appears after return statements.
  */
 public class DeadCodeEliminationVisitor extends AJmmVisitor<Void, Boolean> {
-
-    private boolean modified = false;
 
     @Override
     protected void buildVisitor() {
@@ -20,45 +18,32 @@ public class DeadCodeEliminationVisitor extends AJmmVisitor<Void, Boolean> {
     }
 
     private Boolean visitMethodDecl(JmmNode node, Void unused) {
-        if (!node.get("method").equals("foo")) {
-            return false;
-        }
+        boolean methodChanged = false;
+        String methodName = node.get("method");
 
-        System.out.println("DCE: Processing foo method");
+        System.out.println("DCE: Processing method " + methodName);
 
-        JmmNode assignmentNode = null;
-        JmmNode returnNode = null;
-        int assignmentIndex = -1;
+        boolean foundReturn = false;
+        List<Integer> toRemove = new ArrayList<>();
 
         for (int i = 0; i < node.getNumChildren(); i++) {
             JmmNode child = node.getChild(i);
 
-            if (child.getKind().equals(Kind.ASSIGN_STMT.toString())) {
-                JmmNode lhs = child.getChild(0);
-                if (lhs.getKind().equals(Kind.VAR_REF_EXPR.toString()) &&
-                        lhs.get("name").equals("a")) {
-                    assignmentNode = child;
-                    assignmentIndex = i;
-                }
-            }
-            else if (child.getKind().equals(Kind.RETURN_STMT.toString())) {
-                returnNode = child;
+            if (foundReturn) {
+                toRemove.add(i);
+            } else if (child.getKind().equals(Kind.RETURN_STMT.toString())) {
+                foundReturn = true;
             }
         }
 
-        if (assignmentNode != null && returnNode != null) {
-            JmmNode returnExpr = returnNode.getChild(0);
-
-            if (returnExpr.getKind().equals(Kind.INTEGER_LITERAL.toString())) {
-                System.out.println("DCE: Found unused assignment to 'a', removing it");
-
-                node.removeChild(assignmentIndex);
-                modified = true;
-                return true;
-            }
+        for (int i = toRemove.size() - 1; i >= 0; i--) {
+            int index = toRemove.get(i);
+            node.removeChild(index);
+            methodChanged = true;
+            System.out.println("DCE: Removed unreachable statement at index " + index);
         }
 
-        return false;
+        return methodChanged;
     }
 
     private Boolean defaultVisit(JmmNode node, Void unused) {
@@ -68,6 +53,4 @@ public class DeadCodeEliminationVisitor extends AJmmVisitor<Void, Boolean> {
         }
         return changed;
     }
-
-
 }

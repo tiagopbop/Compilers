@@ -15,43 +15,58 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Boolean> {
     @Override
     protected void buildVisitor() {
         addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
+        addVisit("MainMethodDeclaration", this::visitMethodDecl);
         setDefaultVisit(this::defaultVisit);
     }
 
     private Boolean visitMethodDecl(JmmNode method, Void unused) {
         constants.clear();
         reassigned.clear();
-
+        String methodName = method.hasAttribute("method") ? method.get("method") : "main";
         boolean changed = false;
+        Map<String, JmmNode> assignments = new HashMap<>();
 
         for (JmmNode stmt : method.getChildren()) {
-            if (stmt.getKind().equals(Kind.ASSIGN_STMT.toString())) {
-                JmmNode lhs = stmt.getChild(0);
-                JmmNode rhs = stmt.getChild(1);
+            collectAssignments(stmt, assignments);
+        }
 
-                if (!lhs.getKind().equals(Kind.VAR_REF_EXPR.toString())) continue;
+        for (Map.Entry<String, JmmNode> entry : assignments.entrySet()) {
+            String varName = entry.getKey();
+            JmmNode assignStmt = entry.getValue();
 
-                String varName = lhs.get("name");
+            if (assignStmt.getKind().equals(Kind.ASSIGN_STMT.toString())) {
+                JmmNode rhs = assignStmt.getChild(1);
+                if (rhs.getKind().equals(Kind.INTEGER_LITERAL.toString())) {
+                    // Check if this variable is only assigned once (is constant)
+                    long assignmentCount = assignments.entrySet().stream()
+                            .filter(e -> e.getKey().equals(varName))
+                            .count();
 
-                if (constants.containsKey(varName)) {
-                    reassigned.add(varName);
-                    constants.remove(varName);
-                } else if (rhs.getKind().equals(Kind.INTEGER_LITERAL.toString())) {
-                    if (!reassigned.contains(varName)) {
+                    if (assignmentCount == 1) {
                         constants.put(varName, rhs.get("value"));
                     }
-                } else {
-                    reassigned.add(varName);
-                    constants.remove(varName);
                 }
             }
         }
 
         for (JmmNode stmt : method.getChildren()) {
-            changed |= replaceConstants(stmt);
+            boolean stmtChanged = replaceConstants(stmt);
+            changed |= stmtChanged;
         }
-
         return changed;
+    }
+
+    private void collectAssignments(JmmNode node, Map<String, JmmNode> assignments) {
+        if (node.getKind().equals(Kind.ASSIGN_STMT.toString())) {
+            JmmNode lhs = node.getChild(0);
+            if (lhs.getKind().equals(Kind.VAR_REF_EXPR.toString())) {
+                String varName = lhs.get("name");
+                assignments.put(varName, node);
+            }
+        }
+        for (JmmNode child : node.getChildren()) {
+            collectAssignments(child, assignments);
+        }
     }
 
     private boolean replaceConstants(JmmNode node) {
@@ -78,8 +93,6 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Boolean> {
 
         return changed;
     }
-
-
 
     private Boolean defaultVisit(JmmNode node, Void unused) {
         boolean changed = false;

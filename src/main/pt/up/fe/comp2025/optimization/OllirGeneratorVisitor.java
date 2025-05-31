@@ -6,6 +6,7 @@ import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2025.ast.TypeUtils;
 
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static pt.up.fe.comp2025.ast.Kind.*;
@@ -195,6 +196,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         Type leftType = types.getExprType(left);
         String leftTypeString = ollirTypes.toOllirType(leftType);
         String varName;
+
         switch (left.getKind()) {
             case "VarRefExpr":
                 varName = left.get("name");
@@ -205,7 +207,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             default:
                 throw new RuntimeException("Unsupported LHS kind in assignment: " + left.getKind());
         }
-
+        
         Type rhsType = types.getExprType(node.getChild(1));
 
         if (rhsType.isArray() && !leftType.isArray()) {
@@ -245,8 +247,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                         .append(", ").append(rhs.getCode())
                         .append(")").append(leftTypeString)
                         .append(";\n");
-            } else {
-                code.append("// warning: empty RHS for field '").append(varName).append("'\n");
             }
         } else {
             if (!rhs.getCode().isEmpty()) {
@@ -254,8 +254,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                         .append(" :=").append(leftTypeString)
                         .append(" ").append(rhs.getCode())
                         .append(";\n");
-            } else {
-                code.append("// warning: empty RHS for local '").append(varName).append("'\n");
             }
         }
 
@@ -401,7 +399,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitClass(JmmNode node, Void unused) {
-
         StringBuilder code = new StringBuilder();
 
         code.append(NL);
@@ -410,21 +407,19 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         if (table.getSuper() != null) {
             code.append(" extends ").append(table.getSuper());
         }
-        
+
         code.append(L_BRACKET);
         code.append(NL);
 
         for (var field : table.getFields()) {
             code.append(".field ");
             code.append("private ");
-
             code.append(field.getName())
                     .append(ollirTypes.toOllirType(field.getType()))
                     .append(";\n");
         }
 
         code.append(NL);
-
         code.append(buildConstructor());
         code.append(NL);
 
@@ -434,7 +429,6 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         }
 
         code.append(R_BRACKET);
-
         return code.toString();
     }
 
@@ -449,16 +443,44 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitProgram(JmmNode node, Void unused) {
-
         StringBuilder code = new StringBuilder();
 
+        Set<String> processedImports = new HashSet<>();
+        Map<String, String> importMap = new HashMap<>();
+
+        for (var child : node.getChildren()) {
+            if (child.getKind().equals("ImportDeclaration")) {
+                List<String> nameParts = child.getObjectAsList("name", String.class);
+                if (!nameParts.isEmpty()) {
+                    String fullPath = String.join(".", nameParts);
+                    String className = nameParts.get(nameParts.size() - 1);
+
+                    if (!processedImports.contains(fullPath)) {
+                        if (importMap.containsKey(className)) {
+                            String existing = importMap.get(className);
+                            if (fullPath.length() < existing.length()) {
+                                importMap.put(className, fullPath);
+                            }
+                        } else {
+                            importMap.put(className, fullPath);
+                        }
+                        processedImports.add(fullPath);
+                    }
+                }
+            }
+        }
+
+        for (String importPath : new TreeSet<>(importMap.values())) {
+            code.append("import ").append(importPath).append(";\n");
+        }
+
         node.getChildren().stream()
+                .filter(child -> !child.getKind().equals("ImportDeclaration"))
                 .map(this::visit)
                 .forEach(code::append);
 
         return code.toString();
     }
-
     /**
      * Default visitor. Visits every child node and return an empty string.
      *

@@ -26,22 +26,30 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
-
         if (!CompilerConfig.getOptimize(semanticsResult.getConfig())) {
             return semanticsResult;
         }
+
         List<Report> reports = new ArrayList<>();
         JmmNode rootNode = semanticsResult.getRootNode();
 
-        ConstantPropagationVisitor propVisitor = new ConstantPropagationVisitor();
+        boolean globalChanged = true;
+        int maxPasses = 10; // prevent infinite loops
+        int passCount = 0;
 
-        boolean propChanged = propVisitor.visit(rootNode);
-        ConstantFoldingVisitor folder = new ConstantFoldingVisitor();
-        folder.visit(semanticsResult.getRootNode());
-        DeadCodeEliminationVisitor dceVisitor = new DeadCodeEliminationVisitor();
-
-        boolean dceChanged = dceVisitor.visit(rootNode);
-
+        while (globalChanged && passCount < maxPasses) {
+            globalChanged = false;
+            passCount++;
+            ConstantPropagationVisitor propVisitor = new ConstantPropagationVisitor();
+            boolean propChanged = propVisitor.visit(rootNode);
+            globalChanged |= propChanged;
+            ConstantFoldingVisitor folder = new ConstantFoldingVisitor();
+            boolean foldChanged = folder.visit(rootNode);
+            globalChanged |= foldChanged;
+            DeadCodeEliminationVisitor dceVisitor = new DeadCodeEliminationVisitor();
+            boolean dceChanged = dceVisitor.visit(rootNode);
+            globalChanged |= dceChanged;
+        }
         return new JmmSemanticsResult(semanticsResult, reports);
     }
 

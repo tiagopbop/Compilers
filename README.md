@@ -8,3 +8,5 @@ Contains a reference implementation for the compiler project.
 - Constant folding
 - Constant propagation
 - Dead code elimination (after return statements)
+
+PROJECT GRADE: 18.04

@@ -9,8 +9,8 @@ Contains a reference implementation for the compiler project.
 - Constant propagation
 - Dead code elimination (after return statements)
 
-PROJECT GRADE: 18.04
-
 ### Project Distribution
 - Tiago Pinheiro (up202207890) -> 50% 
 - Tiago Rocha (up202206232) -> 50% 
+
+### PROJECT GRADE: 18.04

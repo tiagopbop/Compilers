@@ -10,3 +10,7 @@ Contains a reference implementation for the compiler project.
 - Dead code elimination (after return statements)
 
 PROJECT GRADE: 18.04
+
+### Project Distribution
+- Tiago Pinheiro (up202207890) -> 50% 
+- Tiago Rocha (up202206232) -> 50% 
